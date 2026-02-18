@@ -101,24 +101,112 @@ impl App {
     }
 
     pub(super) fn handle_agent_command(&mut self, text: &str) -> Result<()> {
+        let text = text.trim();
+        if text.is_empty() {
+            return Ok(());
+        }
+
+        let mut parts = text.splitn(2, ' ');
+        let command = parts.next().unwrap_or_default();
+        let raw_prompt = parts.next().unwrap_or_default();
+
+        if matches!(command, "/résume" | "/draft" | "/cherche") {
+            let (prompt, context_channel) = Self::extract_context_channel(raw_prompt);
+            self.confirmation_dialog = Some(ConfirmationDialog {
+                command: command.to_string(),
+                prompt,
+                context_channel,
+                is_editing: true,
+            });
+            return Ok(());
+        }
+
+        self.execute_agent_command(text)
+    }
+
+    pub(super) fn dispatch_confirmed_command(&mut self, dialog: &ConfirmationDialog) -> Result<()> {
+        let mut command_text = dialog.command.clone();
+        if !dialog.prompt.is_empty() {
+            command_text.push(' ');
+            command_text.push_str(dialog.prompt.trim());
+        }
+        if let Some(channel) = &dialog.context_channel {
+            command_text.push(' ');
+            command_text.push('#');
+            command_text.push_str(channel);
+        }
+
+        self.execute_agent_command(command_text.trim())
+    }
+
+    pub(super) fn fetch_channel_history(&mut self, channel_id: &str) -> Result<()> {
+        if let Some(ws) = self.workspaces.get(self.active_workspace) {
+            let token = ws.workspace.xoxp_token.clone();
+            let channel_id = channel_id.to_string();
+            let api = self.slack_api.clone();
+            self.spawn_app_task(async move {
+                match api.get_history(&token, &channel_id, 50).await {
+                    Ok(messages) => AppAsyncEvent::ChannelHistoryLoaded {
+                        channel_id,
+                        messages,
+                        error: None,
+                    },
+                    Err(e) => AppAsyncEvent::ChannelHistoryLoaded {
+                        channel_id,
+                        messages: Vec::new(),
+                        error: Some(e.to_string()),
+                    },
+                }
+            });
+        }
+
+        Ok(())
+    }
+
+    pub(super) fn insert_channel_reference(&mut self, channel_name: &str, trigger_position: usize) {
+        if trigger_position >= self.input.buffer.len() {
+            return;
+        }
+
+        let replacement = format!("#{} ", channel_name);
+        let replace_end = trigger_position.saturating_add(1).min(self.input.buffer.len());
+        self.input
+            .buffer
+            .replace_range(trigger_position..replace_end, &replacement);
+    }
+
+    fn extract_context_channel(prompt: &str) -> (String, Option<String>) {
+        let mut context_channel = None;
+        let filtered_parts: Vec<&str> = prompt
+            .split_whitespace()
+            .filter(|part| {
+                if context_channel.is_none() && part.starts_with('#') && part.len() > 1 {
+                    context_channel = Some(part.trim_start_matches('#').to_string());
+                    false
+                } else {
+                    true
+                }
+            })
+            .collect();
+
+        (filtered_parts.join(" "), context_channel)
+    }
+
+    fn execute_agent_command(&mut self, text: &str) -> Result<()> {
         use slack_zc_agent::commands::{process_command, CommandType};
 
         let (cmd_name, args) = match process_command(text) {
             Some((cmd, args)) => (cmd, args),
-            None => {
-                return Ok(());
-            }
+            None => return Ok(()),
         };
 
         let command = CommandType::from_command(&cmd_name, &args);
-
         let channel_id = self.get_active_channel_id().unwrap_or_default();
         let user_id = self
             .workspaces
             .get(self.active_workspace)
             .and_then(|ws| ws.workspace.user_id.clone())
             .unwrap_or_else(|| "UNKNOWN_USER".to_string());
-
         let payload = command.to_webhook_payload(&channel_id, &user_id);
 
         if let Some(ref mut runner) = self.agent_runner {

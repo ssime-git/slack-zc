@@ -1,8 +1,10 @@
 use super::*;
+use std::time::Instant;
 
 pub struct App {
     pub should_quit: bool,
     pub session: Option<Session>,
+    pub config: Config,
     pub workspaces: Vec<WorkspaceState>,
     pub active_workspace: usize,
     pub layout: LayoutState,
@@ -30,6 +32,8 @@ pub struct App {
     pub selected_channel: Option<usize>,
     pub active_threads: HashMap<String, String>,
     pub agent_processing: bool,
+    pub loading_start_time: Option<Instant>,
+    pub loading_command: Option<String>,
     pub is_loading: bool,
     pub loading_message: String,
     pub typing_users: HashMap<String, Vec<String>>,
@@ -46,18 +50,19 @@ pub struct App {
 
 impl Default for App {
     fn default() -> Self {
-        Self::new()
+        Self::new(Config::default())
     }
 }
 
 impl App {
-    pub fn new() -> Self {
+    pub fn new(config: Config) -> Self {
         let (event_tx, event_rx) = mpsc::unbounded_channel();
         let (app_async_tx, app_async_rx) = mpsc::unbounded_channel();
 
         Self {
             should_quit: false,
             session: None,
+            config,
             workspaces: Vec::new(),
             active_workspace: 0,
             layout: LayoutState::default(),
@@ -85,6 +90,8 @@ impl App {
             selected_channel: None,
             active_threads: HashMap::new(),
             agent_processing: false,
+            loading_start_time: None,
+            loading_command: None,
             is_loading: true,
             loading_message: "Loading...".to_string(),
             typing_users: HashMap::new(),

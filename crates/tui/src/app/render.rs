@@ -397,7 +397,21 @@ impl App {
     }
 
     fn render_agent_panel(&self, frame: &mut Frame, area: Rect) {
+        use ratatui::layout::Alignment;
         use ratatui::widgets::{Block, Borders, Paragraph};
+
+        if let (Some(start_time), Some(cmd)) = (self.loading_start_time, &self.loading_command) {
+            let elapsed = start_time.elapsed().as_secs();
+            let loading_text = format!("Processing {}... ({}s)", cmd, elapsed);
+
+            frame.render_widget(
+                Paragraph::new(loading_text)
+                    .block(Block::default().borders(Borders::ALL).title(" Agent "))
+                    .alignment(Alignment::Center),
+                area,
+            );
+            return;
+        }
 
         let status = match self.agent_status {
             AgentStatus::Unavailable => "⚠ unavailable",

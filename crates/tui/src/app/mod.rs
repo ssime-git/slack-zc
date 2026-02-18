@@ -29,7 +29,7 @@ mod render;
 mod state;
 mod types;
 
-pub use state::App;
+pub use state::{App, ChannelPicker, ConfirmationDialog};
 pub use types::{
     AgentResponse, AppAsyncEvent, ContextMenu, ContextMenuAction, ContextMenuItem, EditState,
     MessageFilter,
@@ -71,6 +71,7 @@ impl App {
 #[cfg(test)]
 mod tests {
     use super::App;
+    use crate::Config;
     use chrono::Utc;
     use slack_zc_slack::socket::SlackEvent;
     use slack_zc_slack::types::Message;
@@ -95,7 +96,7 @@ mod tests {
 
     #[test]
     fn routes_messages_to_their_source_channel() {
-        let mut app = App::new();
+        let mut app = App::new(Config::default());
         let tx = app.event_tx.as_ref().expect("event tx").clone();
 
         tx.send(SlackEvent::Message {
@@ -117,7 +118,7 @@ mod tests {
 
     #[test]
     fn tracks_thread_context_per_channel() {
-        let mut app = App::new();
+        let mut app = App::new(Config::default());
         let tx = app.event_tx.as_ref().expect("event tx").clone();
 
         tx.send(SlackEvent::Message {

@@ -1,6 +1,22 @@
 use super::*;
 use std::time::Instant;
 
+#[derive(Debug, Clone)]
+pub struct ConfirmationDialog {
+    pub command: String,
+    pub prompt: String,
+    pub context_channel: Option<String>,
+    pub is_editing: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct ChannelPicker {
+    pub query: String,
+    pub filtered_channels: Vec<Channel>,
+    pub selected_index: usize,
+    pub trigger_position: usize,
+}
+
 pub struct App {
     pub should_quit: bool,
     pub session: Option<Session>,
@@ -46,6 +62,8 @@ pub struct App {
     pub show_user_filter: bool,
     pub last_error: Option<String>,
     pub show_error_details: bool,
+    pub confirmation_dialog: Option<ConfirmationDialog>,
+    pub channel_picker: Option<ChannelPicker>,
 }
 
 impl Default for App {
@@ -104,6 +122,8 @@ impl App {
             show_user_filter: false,
             last_error: None,
             show_error_details: false,
+            confirmation_dialog: None,
+            channel_picker: None,
         }
     }
 }

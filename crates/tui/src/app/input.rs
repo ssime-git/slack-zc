@@ -47,7 +47,7 @@ impl App {
                             && !onboarding.client_id.is_empty()
                             && !onboarding.client_secret.is_empty()
                         {
-                            let _ = onboarding.generate_oauth_url(3000);
+                            let _ = onboarding.generate_oauth_url(self.config.slack.redirect_port);
                         } else if !onboarding.oauth_code.is_empty() {
                             let code = onboarding.oauth_code.clone();
                             if let Some(ref mut o) = self.onboarding {
@@ -178,6 +178,93 @@ impl App {
             return Ok(false);
         }
 
+        if self.confirmation_dialog.is_some() {
+            match key.code {
+                KeyCode::Enter => {
+                    if let Some(dialog) = self.confirmation_dialog.take() {
+                        self.dispatch_confirmed_command(&dialog)?;
+                    }
+                }
+                KeyCode::Esc => {
+                    self.confirmation_dialog = None;
+                }
+                KeyCode::Char(c) => {
+                    if let Some(dialog) = self.confirmation_dialog.as_mut() {
+                        if dialog.is_editing {
+                            dialog.prompt.push(c);
+                        }
+                    }
+                }
+                KeyCode::Backspace => {
+                    if let Some(dialog) = self.confirmation_dialog.as_mut() {
+                        if dialog.is_editing {
+                            dialog.prompt.pop();
+                        }
+                    }
+                }
+                _ => {}
+            }
+            return Ok(false);
+        }
+
+        if self.channel_picker.is_some() {
+            match key.code {
+                KeyCode::Esc => {
+                    self.channel_picker = None;
+                }
+                KeyCode::Up => {
+                    if let Some(picker) = self.channel_picker.as_mut() {
+                        if picker.selected_index > 0 {
+                            picker.selected_index -= 1;
+                        }
+                    }
+                }
+                KeyCode::Down => {
+                    if let Some(picker) = self.channel_picker.as_mut() {
+                        if picker.selected_index < picker.filtered_channels.len().saturating_sub(1) {
+                            picker.selected_index += 1;
+                        }
+                    }
+                }
+                KeyCode::Enter => {
+                    if let Some(picker) = self.channel_picker.take() {
+                        if let Some(ch) = picker.filtered_channels.get(picker.selected_index) {
+                            self.insert_channel_reference(&ch.name, picker.trigger_position);
+                            self.fetch_channel_history(&ch.id)?;
+                        }
+                    }
+                }
+                KeyCode::Char(c) => {
+                    if let Some(picker) = self.channel_picker.as_mut() {
+                        picker.query.push(c);
+                        let query = picker.query.to_lowercase();
+                        picker.filtered_channels = self
+                            .channels
+                            .iter()
+                            .filter(|ch| ch.name.to_lowercase().contains(&query))
+                            .cloned()
+                            .collect();
+                        picker.selected_index = 0;
+                    }
+                }
+                KeyCode::Backspace => {
+                    if let Some(picker) = self.channel_picker.as_mut() {
+                        picker.query.pop();
+                        let query = picker.query.to_lowercase();
+                        picker.filtered_channels = self
+                            .channels
+                            .iter()
+                            .filter(|ch| ch.name.to_lowercase().contains(&query))
+                            .cloned()
+                            .collect();
+                        picker.selected_index = 0;
+                    }
+                }
+                _ => {}
+            }
+            return Ok(false);
+        }
+
         match key.code {
             KeyCode::Char('w') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 self.show_workspace_picker = true;
@@ -275,6 +362,20 @@ impl App {
             }
             KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 self.copy_selected_message()?;
+            }
+            KeyCode::Char('#') => {
+                if self.edit_message.is_none() {
+                    let should_trigger = self.input.buffer.is_empty() || self.input.buffer.ends_with(' ');
+                    self.input.handle_char('#');
+                    if should_trigger {
+                        self.channel_picker = Some(ChannelPicker {
+                            query: String::new(),
+                            filtered_channels: self.channels.clone(),
+                            selected_index: 0,
+                            trigger_position: self.input.buffer.len().saturating_sub(1),
+                        });
+                    }
+                }
             }
             KeyCode::Char(c) => {
                 if self.edit_message.is_none() {

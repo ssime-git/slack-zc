@@ -69,12 +69,13 @@ impl App {
             let client_id = onboarding.client_id.clone();
             let client_secret = onboarding.client_secret.clone();
             let code = code.to_string();
+            let redirect_port = self.config.slack.redirect_port;
             self.spawn_app_task(async move {
                 let result = slack_zc_slack::auth::exchange_oauth_code(
                     &client_id,
                     &client_secret,
                     &code,
-                    "http://localhost:3000",
+                    &format!("http://localhost:{}", redirect_port),
                 )
                 .await;
 
@@ -197,6 +198,8 @@ impl App {
                     error,
                 } => {
                     self.agent_processing = false;
+                    self.loading_start_time = None;
+                    self.loading_command = None;
                     if let Some(err) = error {
                         self.report_error("Agent command failed", err);
                     } else if let Some(resp) = response {

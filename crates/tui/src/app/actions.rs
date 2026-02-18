@@ -1,4 +1,5 @@
 use super::*;
+use std::time::Instant;
 
 impl App {
     pub(super) fn switch_workspace(&mut self, idx: usize) {
@@ -124,6 +125,8 @@ impl App {
             if let Some(gateway) = runner.get_gateway().cloned() {
                 self.agent_processing = true;
                 let command_text = text.to_string();
+                self.loading_start_time = Some(Instant::now());
+                self.loading_command = Some(command_text.clone());
                 let channel = self.get_active_channel_id();
                 let token = self
                     .workspaces

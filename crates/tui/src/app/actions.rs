@@ -133,26 +133,37 @@ impl App {
                     .as_ref()
                     .and_then(|ch| self.active_threads.get(ch).cloned());
                 let api = self.slack_api.clone();
+                let timeout_secs = self.config.zeroclaw.timeout_seconds;
                 self.spawn_app_task(async move {
                     let response =
-                        match timeout(Duration::from_secs(15), gateway.send_to_agent(&payload))
-                            .await
+                        match timeout(
+                            Duration::from_secs(timeout_secs),
+                            gateway.send_to_agent(&payload),
+                        )
+                        .await
                         {
                             Ok(Ok(text)) => text,
                             Ok(Err(e)) => {
                                 return AppAsyncEvent::AgentCommandFinished {
                                     command: command_text,
                                     response: None,
-                                    error: Some(format!("Agent command failed: {}", e)),
+                                    error: Some(format!(
+                                        "Agent command failed after {}s: {}\n\nPress R to retry",
+                                        timeout_secs, e
+                                    )),
                                 }
                             }
                             Err(_) => {
                                 return AppAsyncEvent::AgentCommandFinished {
                                     command: command_text,
                                     response: None,
-                                    error: Some(
-                                        "Agent command failed: timed out after 15s".to_string(),
-                                    ),
+                                    error: Some(format!(
+                                        "Agent command timed out after {}s.\n\n\
+                                         What was tried: Gateway webhook call to agent\n\
+                                         Suggestions: Check agent status, try again\n\n\
+                                         Press R to retry",
+                                        timeout_secs
+                                    )),
                                 }
                             }
                         };

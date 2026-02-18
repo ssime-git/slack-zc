@@ -31,8 +31,8 @@ impl CommandType {
         match name.to_lowercase().as_str() {
             "resume" | "résume" | "summarize" => Self::Resume {
                 channel: args.first().map(|s| {
-                    if s.starts_with('#') {
-                        s[1..].to_string()
+                    if let Some(stripped) = s.strip_prefix('#') {
+                        stripped.to_string()
                     } else {
                         s.clone()
                     }

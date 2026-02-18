@@ -1,0 +1,14 @@
+[slack]
+client_id = ""
+client_secret = ""
+redirect_port = 3000
+
+[zeroclaw]
+binary_path = "zeroclaw"
+gateway_port = 8080
+auto_start = true
+timeout_seconds = 30
+
+[llm]
+provider = "openrouter"
+api_key = ""

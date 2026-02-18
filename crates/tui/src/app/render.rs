@@ -400,6 +400,11 @@ impl App {
         use ratatui::layout::Alignment;
         use ratatui::widgets::{Block, Borders, Paragraph};
 
+        if let Some(ref dialog) = self.confirmation_dialog {
+            self.render_confirmation_dialog(frame, area, dialog);
+            return;
+        }
+
         if let (Some(start_time), Some(cmd)) = (self.loading_start_time, &self.loading_command) {
             let elapsed = start_time.elapsed().as_secs();
             let loading_text = format!("Processing {}... ({}s)", cmd, elapsed);
@@ -451,6 +456,65 @@ impl App {
         );
     }
 
+    fn render_confirmation_dialog(&self, frame: &mut Frame, area: Rect, dialog: &ConfirmationDialog) {
+        use ratatui::widgets::{Block, Borders, Clear, Paragraph};
+
+        frame.render_widget(Clear, area);
+
+        let context = dialog.context_channel.as_deref().unwrap_or("none");
+        let content = format!(
+            "Command: {}\n\nPrompt (editable): {}\n\nContext: {}\n\n[Enter] Confirm  [Esc] Cancel",
+            dialog.command, dialog.prompt, context
+        );
+
+        frame.render_widget(
+            Paragraph::new(content).block(Block::default().borders(Borders::ALL).title(" Confirm Command ")),
+            area,
+        );
+    }
+
+    fn render_channel_picker(&self, frame: &mut Frame, input_area: Rect, picker: &ChannelPicker) {
+        use ratatui::style::{Modifier, Style};
+        use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState};
+
+        let max_visible = 8u16;
+        let picker_height = (picker.filtered_channels.len() as u16 + 2).min(max_visible);
+        if picker_height < 2 {
+            return;
+        }
+
+        let base_y = input_area.y.saturating_add(input_area.height);
+        let picker_area = Rect::new(
+            input_area.x,
+            base_y.min(frame.area().height.saturating_sub(picker_height)),
+            input_area.width,
+            picker_height,
+        );
+
+        frame.render_widget(Clear, picker_area);
+
+        let items: Vec<ListItem> = picker
+            .filtered_channels
+            .iter()
+            .map(|ch| ListItem::new(format!("#{}", ch.name)))
+            .collect();
+
+        let mut list_state = ListState::default();
+        if !items.is_empty() {
+            list_state.select(Some(picker.selected_index.min(items.len().saturating_sub(1))));
+        }
+
+        let list = List::new(items)
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title(format!(" Channel Picker: {} ", picker.query)),
+            )
+            .highlight_style(Style::default().add_modifier(Modifier::BOLD));
+
+        frame.render_stateful_widget(list, picker_area, &mut list_state);
+    }
+
     fn render_input_bar(&self, frame: &mut Frame, area: Rect) {
         use ratatui::widgets::{Block, Borders, Paragraph};
 
@@ -471,6 +535,10 @@ impl App {
             Paragraph::new(text).block(Block::default().borders(Borders::ALL)),
             area,
         );
+
+        if let Some(ref picker) = self.channel_picker {
+            self.render_channel_picker(frame, area, picker);
+        }
     }
 
     fn render_context_menu(&self, frame: &mut Frame, area: Rect, menu: &ContextMenu) {

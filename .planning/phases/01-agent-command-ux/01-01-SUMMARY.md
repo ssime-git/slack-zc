@@ -73,13 +73,21 @@ Each task was committed atomically:
 - **Verification:** `cargo check -p slack-zc` completed successfully.
 - **Committed in:** 3ef38e6 (task commit)
 
+**2. [Rule 3 - Blocking] Fallback to manual STATE.md updates**
+- **Found during:** Post-task state update step
+- **Issue:** `gsd-tools state advance-plan/update-progress/record-session` could not parse this repository's STATE.md format.
+- **Fix:** Applied direct `STATE.md` edits for current position, progress, metrics, and session continuity fields.
+- **Files modified:** .planning/STATE.md
+- **Verification:** Read back `STATE.md` and confirmed phase/plan/progress values reflect completed plan.
+- **Committed in:** 291d844 (metadata commit)
+
 ---
 
-**Total deviations:** 1 auto-fixed (1 blocking)
-**Impact on plan:** Verification path corrected without scope changes; planned behavior delivered fully.
+**Total deviations:** 2 auto-fixed (2 blocking)
+**Impact on plan:** Both fixes were execution blockers only; feature scope and delivered behavior stayed unchanged.
 
 ## Issues Encountered
-None.
+- `gsd-tools` state automation helpers were incompatible with current STATE.md schema, so state updates were applied manually.
 
 ## User Setup Required
 None - no external service configuration required.

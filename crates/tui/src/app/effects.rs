@@ -93,7 +93,7 @@ impl App {
                     },
                     Err(e) => AppAsyncEvent::OAuthCompleted {
                         workspace: None,
-                        error: Some(e.to_string()),
+                        error: Some(App::actionable_error(&e)),
                     },
                 }
             });

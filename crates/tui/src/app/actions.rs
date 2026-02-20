@@ -346,7 +346,7 @@ impl App {
                                         .delete_message(&token, &channel_id, &ts)
                                         .await
                                         .err()
-                                        .map(|e| e.to_string());
+                                        .map(|e| App::actionable_error(&e));
                                     AppAsyncEvent::SlackSendResult {
                                         context: "Failed to delete message".to_string(),
                                         error,
@@ -507,7 +507,7 @@ impl App {
                         .update_message(&token, &channel_id, &ts, &text)
                         .await
                         .err()
-                        .map(|e| e.to_string());
+                        .map(|e| App::actionable_error(&e));
                     AppAsyncEvent::SlackSendResult {
                         context: "Failed to update message".to_string(),
                         error,
@@ -536,7 +536,7 @@ impl App {
                                     .add_reaction(&token, &channel_id, &ts, &reaction)
                                     .await
                                     .err()
-                                    .map(|e| e.to_string());
+                                    .map(|e| App::actionable_error(&e));
                                 AppAsyncEvent::SlackSendResult {
                                     context: "Failed to add reaction".to_string(),
                                     error,
@@ -578,7 +578,7 @@ impl App {
                                 channel_id,
                                 parent_ts: thread_ts,
                                 replies: Vec::new(),
-                                error: Some(e.to_string()),
+                                error: Some(App::actionable_error(&e)),
                             },
                         }
                     });
@@ -655,7 +655,7 @@ impl App {
                             Err(e) => AppAsyncEvent::ChannelHistoryLoaded {
                                 channel_id,
                                 messages: Vec::new(),
-                                error: Some(e.to_string()),
+                                error: Some(App::actionable_error(&e)),
                             },
                         }
                     });

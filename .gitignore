@@ -1,3 +1,5 @@
 .planning/
 target/
 .opencode/
+docs/
+.env

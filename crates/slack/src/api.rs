@@ -12,6 +12,7 @@ const SLACK_API_BASE: &str = "https://slack.com/api";
 const USER_CACHE_TTL: Duration = Duration::from_secs(600);
 const MAX_RETRIES: u32 = 3;
 const BASE_DELAY_MS: u64 = 1000;
+const MAX_BACKOFF_MS: u64 = 30_000;
 
 #[cfg(test)]
 mod tests {
@@ -29,7 +30,7 @@ mod tests {
             async move {
                 let count = attempt_count.fetch_add(1, Ordering::SeqCst);
                 if count < 2 {
-                    Err(anyhow!("429"))
+                    Err(anyhow!("429 retry_after:0"))
                 } else {
                     Ok("success")
                 }
@@ -49,7 +50,7 @@ mod tests {
             let attempt_count = attempt_count_clone.clone();
             async move {
                 attempt_count.fetch_add(1, Ordering::SeqCst);
-                Err(anyhow!("429"))
+                Err(anyhow!("429 retry_after:0"))
             }
         }).await;
 
@@ -75,11 +76,40 @@ mod tests {
     #[tokio::test]
     async fn test_calculate_backoff_increases_with_attempts() {
         let delay_0 = calculate_backoff(0);
-        let delay_1 = calculate_backoff(1);
-        let delay_2 = calculate_backoff(2);
+        let delay_4 = calculate_backoff(4);
+        assert!(delay_4 > delay_0);
+    }
 
-        assert!(delay_1 > delay_0);
-        assert!(delay_2 > delay_1);
+    #[test]
+    fn test_calculate_backoff_is_capped() {
+        let delay = calculate_backoff(20);
+        assert!(delay.as_millis() <= MAX_BACKOFF_MS as u128 + 500);
+    }
+
+    #[tokio::test]
+    async fn test_retry_on_transient_network_error() {
+        let attempt_count = Arc::new(AtomicU32::new(0));
+        let attempt_count_clone = attempt_count.clone();
+
+        let result: Result<&str, _> = with_retry(move || {
+            let attempt_count = attempt_count_clone.clone();
+            async move {
+                let count = attempt_count.fetch_add(1, Ordering::SeqCst);
+                if count < 2 {
+                    Err(anyhow!("connection reset by peer"))
+                } else {
+                    Ok("success")
+                }
+            }
+        }).await;
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_parse_retry_after_extracts_seconds() {
+        assert_eq!(parse_retry_after("rate_limited retry_after:30 more"), Some(30));
+        assert_eq!(parse_retry_after("no header here"), None);
     }
 
     #[tokio::test]
@@ -110,10 +140,47 @@ impl Default for SlackApi {
     }
 }
 
+enum RetryDecision {
+    Retry(Duration),
+    Fail,
+}
+
 fn calculate_backoff(attempt: u32) -> Duration {
     let jitter = rand::thread_rng().gen_range(0..500);
     let exponential = BASE_DELAY_MS * 2u64.pow(attempt);
-    Duration::from_millis(exponential + jitter)
+    Duration::from_millis((exponential + jitter).min(MAX_BACKOFF_MS))
+}
+
+fn retry_decision(error: &anyhow::Error) -> RetryDecision {
+    let msg = error.to_string();
+    if msg.contains("429") || msg.contains("rate_limited") {
+        if let Some(after) = parse_retry_after(&msg) {
+            return RetryDecision::Retry(Duration::from_secs(after));
+        }
+        return RetryDecision::Retry(Duration::from_secs(60));
+    }
+    if is_transient_network_error(error) {
+        return RetryDecision::Retry(Duration::ZERO);
+    }
+    RetryDecision::Fail
+}
+
+fn parse_retry_after(msg: &str) -> Option<u64> {
+    let prefix = "retry_after:";
+    let pos = msg.find(prefix)?;
+    msg[pos + prefix.len()..]
+        .split_whitespace()
+        .next()
+        .and_then(|s| s.parse().ok())
+}
+
+fn is_transient_network_error(error: &anyhow::Error) -> bool {
+    if let Some(req_err) = error.downcast_ref::<reqwest::Error>() {
+        return req_err.is_connect() || req_err.is_timeout() || req_err.is_request();
+    }
+    let msg = error.to_string().to_lowercase();
+    msg.contains("connection") || msg.contains("timeout") || msg.contains("timed out")
+        || msg.contains("reset") || msg.contains("eof")
 }
 
 async fn with_retry<T, F, Fut>(mut operation: F) -> Result<T>
@@ -127,23 +194,25 @@ where
         match operation().await {
             Ok(result) => return Ok(result),
             Err(e) => {
-                let is_rate_limited = is_429_error(&e);
-                
-                if !is_rate_limited || attempts >= MAX_RETRIES {
+                if attempts >= MAX_RETRIES {
                     return Err(e);
                 }
-                
-                let delay = calculate_backoff(attempts);
-                tracing::debug!("Rate limited, retrying in {:?}", delay);
-                tokio::time::sleep(delay).await;
-                attempts += 1;
+                match retry_decision(&e) {
+                    RetryDecision::Fail => return Err(e),
+                    RetryDecision::Retry(override_delay) => {
+                        let delay = if override_delay.is_zero() {
+                            calculate_backoff(attempts)
+                        } else {
+                            override_delay
+                        };
+                        tracing::debug!(attempt = attempts, ?delay, "Retrying after error: {e}");
+                        tokio::time::sleep(delay).await;
+                        attempts += 1;
+                    }
+                }
             }
         }
     }
-}
-
-fn is_429_error(error: &anyhow::Error) -> bool {
-    error.to_string().contains("429") || error.to_string().contains("rate_limit")
 }
 
 impl SlackApi {

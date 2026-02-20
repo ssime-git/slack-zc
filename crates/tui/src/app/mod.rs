@@ -42,6 +42,10 @@ impl App {
         tracing::warn!("{message}");
     }
 
+    pub(super) fn actionable_error(error: &anyhow::Error) -> String {
+        slack_zc_slack::error::map_anyhow_error_ref(error).user_message().to_string()
+    }
+
     pub(super) fn clear_error(&mut self) {
         self.last_error = None;
         self.show_error_details = false;

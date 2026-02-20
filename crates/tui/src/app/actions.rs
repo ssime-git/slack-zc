@@ -42,7 +42,7 @@ impl App {
                         Err(e) => AppAsyncEvent::ChannelHistoryLoaded {
                             channel_id,
                             messages: Vec::new(),
-                            error: Some(e.to_string()),
+                            error: Some(App::actionable_error(&e)),
                         },
                     }
                 });
@@ -68,7 +68,7 @@ impl App {
                                 .send_message(&token, &channel, &text)
                                 .await
                                 .err()
-                                .map(|e| e.to_string());
+                                .map(|e| App::actionable_error(&e));
                             AppAsyncEvent::SlackSendResult { context, error }
                         });
                     }
@@ -88,7 +88,7 @@ impl App {
                                 .send_message(&token, &channel, &text)
                                 .await
                                 .err()
-                                .map(|e| e.to_string());
+                                .map(|e| App::actionable_error(&e));
                             AppAsyncEvent::SlackSendResult { context, error }
                         });
                     }
@@ -154,7 +154,7 @@ impl App {
                     Err(e) => AppAsyncEvent::ChannelHistoryLoaded {
                         channel_id,
                         messages: Vec::new(),
-                        error: Some(e.to_string()),
+                        error: Some(App::actionable_error(&e)),
                     },
                 }
             });
@@ -270,7 +270,7 @@ impl App {
                             return AppAsyncEvent::AgentCommandFinished {
                                 command: command_text,
                                 response: None,
-                                error: Some(format!("Failed to post agent response: {}", e)),
+                                error: Some(format!("Failed to post agent response: {}", App::actionable_error(&e))),
                             };
                         }
                     }

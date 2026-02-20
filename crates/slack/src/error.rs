@@ -41,14 +41,18 @@ impl ApiError {
 pub type ApiResult<T> = Result<T, ApiError>;
 
 pub fn map_anyhow_error(e: anyhow::Error) -> ApiError {
+    map_anyhow_error_ref(&e)
+}
+
+pub fn map_anyhow_error_ref(e: &anyhow::Error) -> ApiError {
     let msg = e.to_string();
-    if msg.contains("429") || msg.contains("rate_limit") {
+    if msg.contains("429") || msg.contains("rate_limited") {
         ApiError::RateLimited { retry_after: 60 }
-    } else if msg.contains("not_authed") || msg.contains("invalid_auth") || msg.contains("token") {
+    } else if msg.contains("not_authed") || msg.contains("invalid_auth") || msg.contains("token_revoked") {
         ApiError::Auth(msg)
-    } else if msg.contains("timeout") || msg.contains("timed out") {
+    } else if msg.contains("timeout") || msg.contains("timed out") || msg.contains("connection") {
         ApiError::Timeout(msg)
-    } else if msg.contains("validation") || msg.contains("invalid") {
+    } else if msg.contains("validation") || msg.contains("invalid_") {
         ApiError::Validation(msg)
     } else {
         ApiError::Api(msg)

@@ -55,7 +55,7 @@ impl App {
                             }
                             if let Err(e) = self.complete_oauth(&code) {
                                 if let Some(ref mut o) = self.onboarding {
-                                    o.error_message = Some(e.to_string());
+                                    o.error_message = Some(App::actionable_error(&e));
                                 }
                             }
                         }

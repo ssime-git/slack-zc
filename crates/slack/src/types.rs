@@ -35,6 +35,11 @@ pub struct Message {
     pub timestamp: DateTime<Utc>,
     pub is_agent: bool,
     pub reactions: Vec<Reaction>,
+    pub is_edited: bool,
+    pub is_deleted: bool,
+    pub files: Vec<File>,
+    pub reply_count: Option<u32>,
+    pub last_read: Option<String>,
 }
 
 impl Message {
@@ -52,6 +57,73 @@ impl Message {
             .map(String::from);
         let timestamp = DateTime::from_timestamp(ts.split('.').next()?.parse::<i64>().ok()?, 0)?;
 
+        let reactions: Vec<Reaction> = msg
+            .get("reactions")
+            .and_then(|r| r.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|r| {
+                        Some(Reaction {
+                            name: r.get("name")?.as_str()?.to_string(),
+                            count: r.get("count")?.as_u64()? as u32,
+                            users: r
+                                .get("users")
+                                .and_then(|u| u.as_array())
+                                .map(|users| {
+                                    users
+                                        .iter()
+                                        .filter_map(|u| u.as_str().map(String::from))
+                                        .collect()
+                                })
+                                .unwrap_or_default(),
+                        })
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let is_edited = msg.get("edited").is_some();
+        let is_deleted = msg.get("deleted_at").is_some()
+            || msg
+                .get("is_deleted")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+
+        let files: Vec<File> = msg
+            .get("files")
+            .and_then(|f| f.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|f| {
+                        Some(File {
+                            id: f.get("id")?.as_str()?.to_string(),
+                            name: f.get("name")?.as_str()?.to_string(),
+                            mimetype: f.get("mimetype").and_then(|m| m.as_str()).map(String::from),
+                            url_private: f
+                                .get("url_private")
+                                .and_then(|u| u.as_str())
+                                .map(String::from),
+                            url_private_download: f
+                                .get("url_private_download")
+                                .and_then(|u| u.as_str())
+                                .map(String::from),
+                            size: f.get("size")?.as_u64()? as u32,
+                        })
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let reply_count = msg
+            .get("reply_count")
+            .and_then(|r| r.as_u64())
+            .map(|v| v as u32);
+
+        let last_read = msg
+            .get("last_read")
+            .and_then(|r| r.as_str())
+            .map(String::from);
+
         Some(Self {
             ts,
             user_id,
@@ -60,7 +132,12 @@ impl Message {
             thread_ts,
             timestamp,
             is_agent: false,
-            reactions: Vec::new(),
+            reactions,
+            is_edited,
+            is_deleted,
+            files,
+            reply_count,
+            last_read,
         })
     }
 }
@@ -70,6 +147,51 @@ pub struct Reaction {
     pub name: String,
     pub count: u32,
     pub users: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct File {
+    pub id: String,
+    pub name: String,
+    pub mimetype: Option<String>,
+    pub url_private: Option<String>,
+    pub url_private_download: Option<String>,
+    pub size: u32,
+}
+
+#[derive(Debug, Clone)]
+pub struct FileInfo {
+    pub id: String,
+    pub name: String,
+    pub mimetype: Option<String>,
+    pub url_private: Option<String>,
+    pub url_private_download: Option<String>,
+    pub size: u32,
+    pub title: Option<String>,
+    pub filetype: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct Thread {
+    pub parent_ts: String,
+    pub channel_id: String,
+    pub replies: Vec<Message>,
+    pub is_collapsed: bool,
+}
+
+impl Thread {
+    pub fn new(parent_ts: &str, channel_id: &str) -> Self {
+        Self {
+            parent_ts: parent_ts.to_string(),
+            channel_id: channel_id.to_string(),
+            replies: Vec::new(),
+            is_collapsed: false,
+        }
+    }
+
+    pub fn toggle_collapse(&mut self) {
+        self.is_collapsed = !self.is_collapsed;
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

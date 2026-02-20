@@ -19,6 +19,7 @@ pub struct PairResponse {
 impl GatewayClient {
     pub fn new(port: u16) -> Self {
         let http = Client::builder()
+            .user_agent("slack-zc/0.2")
             .timeout(Duration::from_secs(15))
             .connect_timeout(Duration::from_secs(5))
             .build()
@@ -88,7 +89,12 @@ impl GatewayClient {
         }
 
         let text = response.text().await?;
-        Ok(text)
+        let bounded = if text.chars().count() > 20_000 {
+            text.chars().take(20_000).collect()
+        } else {
+            text
+        };
+        Ok(bounded)
     }
 
     pub fn is_paired(&self) -> bool {

@@ -1,0 +1,22 @@
+[package]
+name = "slack-zc-slack"
+version = "0.2.0"
+edition = "2021"
+
+[dependencies]
+tokio = { workspace = true }
+tokio-tungstenite = { workspace = true, features = ["rustls-tls-webpki-roots"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+reqwest = { workspace = true }
+anyhow = { workspace = true }
+regex = { workspace = true }
+aes-gcm = { workspace = true }
+rand = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }
+directories = { workspace = true }
+tokio-util = { workspace = true }
+futures = "0.3"
+url = "2"
+thiserror = { workspace = true }

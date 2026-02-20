@@ -6,9 +6,92 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
+use rand::Rng;
 
 const SLACK_API_BASE: &str = "https://slack.com/api";
 const USER_CACHE_TTL: Duration = Duration::from_secs(600);
+const MAX_RETRIES: u32 = 3;
+const BASE_DELAY_MS: u64 = 1000;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicU32, Ordering};
+    use std::sync::Arc;
+
+    #[tokio::test]
+    async fn test_retry_success_after_rate_limit() {
+        let attempt_count = Arc::new(AtomicU32::new(0));
+        let attempt_count_clone = attempt_count.clone();
+
+        let result: Result<&str, _> = with_retry(move || {
+            let attempt_count = attempt_count_clone.clone();
+            async move {
+                let count = attempt_count.fetch_add(1, Ordering::SeqCst);
+                if count < 2 {
+                    Err(anyhow!("429"))
+                } else {
+                    Ok("success")
+                }
+            }
+        }).await;
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "success");
+    }
+
+    #[tokio::test]
+    async fn test_retry_fails_after_max_attempts() {
+        let attempt_count = Arc::new(AtomicU32::new(0));
+        let attempt_count_clone = attempt_count.clone();
+
+        let result: Result<&str, _> = with_retry(move || {
+            let attempt_count = attempt_count_clone.clone();
+            async move {
+                attempt_count.fetch_add(1, Ordering::SeqCst);
+                Err(anyhow!("429"))
+            }
+        }).await;
+
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_retry_does_not_retry_non_rate_limit_errors() {
+        let attempt_count = Arc::new(AtomicU32::new(0));
+        let attempt_count_clone = attempt_count.clone();
+
+        let result: Result<&str, _> = with_retry(move || {
+            let attempt_count = attempt_count_clone.clone();
+            async move {
+                attempt_count.fetch_add(1, Ordering::SeqCst);
+                Err(anyhow!("some other error"))
+            }
+        }).await;
+
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_calculate_backoff_increases_with_attempts() {
+        let delay_0 = calculate_backoff(0);
+        let delay_1 = calculate_backoff(1);
+        let delay_2 = calculate_backoff(2);
+
+        assert!(delay_1 > delay_0);
+        assert!(delay_2 > delay_1);
+    }
+
+    #[tokio::test]
+    async fn test_user_cache_returns_cached_users() {
+        let api = SlackApi::new();
+        
+        let users1 = api.get_users_cached("fake_token").await;
+        let users2 = api.get_users_cached("fake_token").await;
+        
+        assert_eq!(users1.len(), users2.len());
+    }
+}
 
 struct UserCache {
     users: HashMap<String, User>,
@@ -19,6 +102,48 @@ struct UserCache {
 pub struct SlackApi {
     client: Client,
     user_cache: Arc<RwLock<UserCache>>,
+}
+
+impl Default for SlackApi {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+fn calculate_backoff(attempt: u32) -> Duration {
+    let jitter = rand::thread_rng().gen_range(0..500);
+    let exponential = BASE_DELAY_MS * 2u64.pow(attempt);
+    Duration::from_millis(exponential + jitter)
+}
+
+async fn with_retry<T, F, Fut>(mut operation: F) -> Result<T>
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = Result<T>>,
+{
+    let mut attempts = 0;
+
+    loop {
+        match operation().await {
+            Ok(result) => return Ok(result),
+            Err(e) => {
+                let is_rate_limited = is_429_error(&e);
+                
+                if !is_rate_limited || attempts >= MAX_RETRIES {
+                    return Err(e);
+                }
+                
+                let delay = calculate_backoff(attempts);
+                tracing::debug!("Rate limited, retrying in {:?}", delay);
+                tokio::time::sleep(delay).await;
+                attempts += 1;
+            }
+        }
+    }
+}
+
+fn is_429_error(error: &anyhow::Error) -> bool {
+    error.to_string().contains("429") || error.to_string().contains("rate_limit")
 }
 
 impl SlackApi {
@@ -196,63 +321,87 @@ impl SlackApi {
         channel_id: &str,
         limit: u32,
     ) -> Result<Vec<Message>> {
-        let response = self
-            .client
-            .get(format!("{}/conversations.history", SLACK_API_BASE))
-            .header("Authorization", format!("Bearer {}", token))
-            .query(&[("channel", channel_id)])
-            .query(&[("limit", limit.to_string())])
-            .send()
-            .await?;
+        let channel_id = channel_id.to_string();
+        let token = token.to_string();
+        
+        with_retry(move || {
+            let channel_id = channel_id.clone();
+            let token = token.clone();
+            async move {
+                let response = self
+                    .client
+                    .get(format!("{}/conversations.history", SLACK_API_BASE))
+                    .header("Authorization", format!("Bearer {}", token))
+                    .query(&[("channel", channel_id.as_str())])
+                    .query(&[("limit", limit.to_string())])
+                    .send()
+                    .await?;
 
-        let data: Value = response.json().await?;
+                let status = response.status();
+                let data: Value = response.json().await?;
 
-        if !data.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
-            return Err(anyhow!(
-                "Failed to get history: {:?}",
-                data.get("error").and_then(|v| v.as_str())
-            ));
-        }
+                if !data.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
+                    let error_msg = data.get("error").and_then(|v| v.as_str()).unwrap_or("unknown");
+                    if error_msg == "rate_limited" || status.as_u16() == 429 {
+                        return Err(anyhow!("429"));
+                    }
+                    return Err(anyhow!("Failed to get history: {}", error_msg));
+                }
 
-        let empty: Vec<serde_json::Value> = Vec::new();
-        let messages = data
-            .get("messages")
-            .and_then(|v| v.as_array())
-            .unwrap_or(&empty);
-        let users_map = self.get_users_cached(token).await;
+                let empty: Vec<serde_json::Value> = Vec::new();
+                let messages = data
+                    .get("messages")
+                    .and_then(|v| v.as_array())
+                    .unwrap_or(&empty);
+                let users_map = self.get_users_cached(&token).await;
 
-        Ok(messages
-            .iter()
-            .filter_map(|m| Message::from_slack_api(m, &users_map))
-            .rev()
-            .collect())
+                Ok(messages
+                    .iter()
+                    .filter_map(|m| Message::from_slack_api(m, &users_map))
+                    .rev()
+                    .collect())
+            }
+        }).await
     }
 
     pub async fn send_message(&self, token: &str, channel_id: &str, text: &str) -> Result<String> {
-        let response = self
-            .client
-            .post(format!("{}/chat.postMessage", SLACK_API_BASE))
-            .header("Authorization", format!("Bearer {}", token))
-            .json(&serde_json::json!({
-                "channel": channel_id,
-                "text": text,
-            }))
-            .send()
-            .await?;
+        let channel_id = channel_id.to_string();
+        let text = text.to_string();
+        let token = token.to_string();
 
-        let data: Value = response.json().await?;
+        with_retry(move || {
+            let channel_id = channel_id.clone();
+            let text = text.clone();
+            let token = token.clone();
+            async move {
+                let response = self
+                    .client
+                    .post(format!("{}/chat.postMessage", SLACK_API_BASE))
+                    .header("Authorization", format!("Bearer {}", token))
+                    .json(&serde_json::json!({
+                        "channel": channel_id,
+                        "text": text,
+                    }))
+                    .send()
+                    .await?;
 
-        if data.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
-            data.get("ts")
-                .and_then(|v| v.as_str())
-                .map(String::from)
-                .ok_or_else(|| anyhow!("No ts in response"))
-        } else {
-            Err(anyhow!(
-                "Failed to send message: {:?}",
-                data.get("error").and_then(|v| v.as_str())
-            ))
-        }
+                let status = response.status();
+                let data: Value = response.json().await?;
+
+                if data.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
+                    data.get("ts")
+                        .and_then(|v| v.as_str())
+                        .map(String::from)
+                        .ok_or_else(|| anyhow!("No ts in response"))
+                } else {
+                    let error_msg = data.get("error").and_then(|v| v.as_str()).unwrap_or("unknown");
+                    if error_msg == "rate_limited" || status.as_u16() == 429 {
+                        return Err(anyhow!("429"));
+                    }
+                    Err(anyhow!("Failed to send message: {}", error_msg))
+                }
+            }
+        }).await
     }
 
     pub async fn send_message_to_thread(
@@ -262,80 +411,104 @@ impl SlackApi {
         text: &str,
         thread_ts: &str,
     ) -> Result<String> {
-        let response = self
-            .client
-            .post(format!("{}/chat.postMessage", SLACK_API_BASE))
-            .header("Authorization", format!("Bearer {}", token))
-            .json(&serde_json::json!({
-                "channel": channel_id,
-                "text": text,
-                "thread_ts": thread_ts,
-            }))
-            .send()
-            .await?;
+        let channel_id = channel_id.to_string();
+        let text = text.to_string();
+        let thread_ts = thread_ts.to_string();
+        let token = token.to_string();
 
-        let data: Value = response.json().await?;
+        with_retry(move || {
+            let channel_id = channel_id.clone();
+            let text = text.clone();
+            let thread_ts = thread_ts.clone();
+            let token = token.clone();
+            async move {
+                let response = self
+                    .client
+                    .post(format!("{}/chat.postMessage", SLACK_API_BASE))
+                    .header("Authorization", format!("Bearer {}", token))
+                    .json(&serde_json::json!({
+                        "channel": channel_id,
+                        "text": text,
+                        "thread_ts": thread_ts,
+                    }))
+                    .send()
+                    .await?;
 
-        if data.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
-            data.get("ts")
-                .and_then(|v| v.as_str())
-                .map(String::from)
-                .ok_or_else(|| anyhow!("No ts in response"))
-        } else {
-            Err(anyhow!(
-                "Failed to send thread message: {:?}",
-                data.get("error").and_then(|v| v.as_str())
-            ))
-        }
+                let status = response.status();
+                let data: Value = response.json().await?;
+
+                if data.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
+                    data.get("ts")
+                        .and_then(|v| v.as_str())
+                        .map(String::from)
+                        .ok_or_else(|| anyhow!("No ts in response"))
+                } else {
+                    let error_msg = data.get("error").and_then(|v| v.as_str()).unwrap_or("unknown");
+                    if error_msg == "rate_limited" || status.as_u16() == 429 {
+                        return Err(anyhow!("429"));
+                    }
+                    Err(anyhow!("Failed to send thread message: {}", error_msg))
+                }
+            }
+        }).await
     }
 
     pub async fn list_users(&self, token: &str) -> Result<Vec<User>> {
-        let response = self
-            .client
-            .get(format!("{}/users.list", SLACK_API_BASE))
-            .header("Authorization", format!("Bearer {}", token))
-            .send()
-            .await?;
+        let token = token.to_string();
 
-        let data: Value = response.json().await?;
+        with_retry(move || {
+            let token = token.clone();
+            async move {
+                let response = self
+                    .client
+                    .get(format!("{}/users.list", SLACK_API_BASE))
+                    .header("Authorization", format!("Bearer {}", token))
+                    .send()
+                    .await?;
 
-        if !data.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
-            return Err(anyhow!(
-                "Failed to list users: {:?}",
-                data.get("error").and_then(|v| v.as_str())
-            ));
-        }
+                let status = response.status();
+                let data: Value = response.json().await?;
 
-        let empty: Vec<serde_json::Value> = Vec::new();
-        let members = data
-            .get("members")
-            .and_then(|v| v.as_array())
-            .unwrap_or(&empty);
+                if !data.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
+                    let error_msg = data.get("error").and_then(|v| v.as_str()).unwrap_or("unknown");
+                    if error_msg == "rate_limited" || status.as_u16() == 429 {
+                        return Err(anyhow!("429"));
+                    }
+                    return Err(anyhow!("Failed to list users: {}", error_msg));
+                }
 
-        Ok(members
-            .iter()
-            .filter_map(|u| {
-                let profile = u.get("profile")?;
-                Some(User {
-                    id: u.get("id")?.as_str()?.to_string(),
-                    name: u.get("name")?.as_str()?.to_string(),
-                    display_name: profile
-                        .get("display_name")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("")
-                        .to_string(),
-                    real_name: profile
-                        .get("real_name")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("")
-                        .to_string(),
-                    email: profile
-                        .get("email")
-                        .and_then(|v| v.as_str())
-                        .map(String::from),
-                })
-            })
-            .collect())
+                let empty: Vec<serde_json::Value> = Vec::new();
+                let members = data
+                    .get("members")
+                    .and_then(|v| v.as_array())
+                    .unwrap_or(&empty);
+
+                Ok(members
+                    .iter()
+                    .filter_map(|u| {
+                        let profile = u.get("profile")?;
+                        Some(User {
+                            id: u.get("id")?.as_str()?.to_string(),
+                            name: u.get("name")?.as_str()?.to_string(),
+                            display_name: profile
+                                .get("display_name")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("")
+                                .to_string(),
+                            real_name: profile
+                                .get("real_name")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("")
+                                .to_string(),
+                            email: profile
+                                .get("email")
+                                .and_then(|v| v.as_str())
+                                .map(String::from),
+                        })
+                    })
+                    .collect())
+            }
+        }).await
     }
 
     pub async fn get_user(&self, token: &str, user_id: &str) -> Result<User> {
@@ -714,11 +887,5 @@ impl SlackApi {
         tokio::fs::write(dest_path, bytes).await?;
 
         Ok(())
-    }
-}
-
-impl Default for SlackApi {
-    fn default() -> Self {
-        Self::new()
     }
 }

@@ -1,0 +1,28 @@
+[package]
+name = "slack-zc"
+version = "0.2.0"
+edition = "2021"
+
+[[bin]]
+name = "slack-zc"
+path = "src/main.rs"
+
+[dependencies]
+slack-zc-slack = { path = "../slack" }
+slack-zc-agent = { path = "../agent" }
+
+ratatui = "0.29"
+crossterm = { version = "0.28", features = ["event-stream"] }
+futures = "0.3"
+tokio-util = "0.7"
+color-eyre = "0.6"
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+regex = { workspace = true }
+directories = { workspace = true }
+toml = "0.8"
+chrono = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }

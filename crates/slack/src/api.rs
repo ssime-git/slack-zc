@@ -663,52 +663,80 @@ impl SlackApi {
         ts: &str,
         text: &str,
     ) -> Result<()> {
-        let response = self
-            .client
-            .post(format!("{}/chat.update", SLACK_API_BASE))
-            .header("Authorization", format!("Bearer {}", token))
-            .json(&serde_json::json!({
-                "channel": channel_id,
-                "ts": ts,
-                "text": text,
-            }))
-            .send()
-            .await?;
+        let channel_id = channel_id.to_string();
+        let ts = ts.to_string();
+        let text = text.to_string();
+        let token = token.to_string();
 
-        let data: Value = response.json().await?;
+        with_retry(move || {
+            let channel_id = channel_id.clone();
+            let ts = ts.clone();
+            let text = text.clone();
+            let token = token.clone();
+            async move {
+                let response = self
+                    .client
+                    .post(format!("{}/chat.update", SLACK_API_BASE))
+                    .header("Authorization", format!("Bearer {}", token))
+                    .json(&serde_json::json!({
+                        "channel": channel_id,
+                        "ts": ts,
+                        "text": text,
+                    }))
+                    .send()
+                    .await?;
 
-        if data.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
-            Ok(())
-        } else {
-            Err(anyhow!(
-                "Failed to update message: {:?}",
-                data.get("error").and_then(|v| v.as_str())
-            ))
-        }
+                let status = response.status();
+                let data: Value = response.json().await?;
+
+                if data.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
+                    Ok(())
+                } else {
+                    let error_msg = data.get("error").and_then(|v| v.as_str()).unwrap_or("unknown");
+                    if error_msg == "rate_limited" || status.as_u16() == 429 {
+                        return Err(anyhow!("429"));
+                    }
+                    Err(anyhow!("Failed to update message: {}", error_msg))
+                }
+            }
+        }).await
     }
 
     pub async fn delete_message(&self, token: &str, channel_id: &str, ts: &str) -> Result<()> {
-        let response = self
-            .client
-            .post(format!("{}/chat.delete", SLACK_API_BASE))
-            .header("Authorization", format!("Bearer {}", token))
-            .json(&serde_json::json!({
-                "channel": channel_id,
-                "ts": ts,
-            }))
-            .send()
-            .await?;
+        let channel_id = channel_id.to_string();
+        let ts = ts.to_string();
+        let token = token.to_string();
 
-        let data: Value = response.json().await?;
+        with_retry(move || {
+            let channel_id = channel_id.clone();
+            let ts = ts.clone();
+            let token = token.clone();
+            async move {
+                let response = self
+                    .client
+                    .post(format!("{}/chat.delete", SLACK_API_BASE))
+                    .header("Authorization", format!("Bearer {}", token))
+                    .json(&serde_json::json!({
+                        "channel": channel_id,
+                        "ts": ts,
+                    }))
+                    .send()
+                    .await?;
 
-        if data.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
-            Ok(())
-        } else {
-            Err(anyhow!(
-                "Failed to delete message: {:?}",
-                data.get("error").and_then(|v| v.as_str())
-            ))
-        }
+                let status = response.status();
+                let data: Value = response.json().await?;
+
+                if data.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
+                    Ok(())
+                } else {
+                    let error_msg = data.get("error").and_then(|v| v.as_str()).unwrap_or("unknown");
+                    if error_msg == "rate_limited" || status.as_u16() == 429 {
+                        return Err(anyhow!("429"));
+                    }
+                    Err(anyhow!("Failed to delete message: {}", error_msg))
+                }
+            }
+        }).await
     }
 
     pub async fn add_reaction(
@@ -718,28 +746,43 @@ impl SlackApi {
         ts: &str,
         reaction: &str,
     ) -> Result<()> {
-        let response = self
-            .client
-            .post(format!("{}/reactions.add", SLACK_API_BASE))
-            .header("Authorization", format!("Bearer {}", token))
-            .json(&serde_json::json!({
-                "channel": channel_id,
-                "timestamp": ts,
-                "name": reaction,
-            }))
-            .send()
-            .await?;
+        let channel_id = channel_id.to_string();
+        let ts = ts.to_string();
+        let reaction = reaction.to_string();
+        let token = token.to_string();
 
-        let data: Value = response.json().await?;
+        with_retry(move || {
+            let channel_id = channel_id.clone();
+            let ts = ts.clone();
+            let reaction = reaction.clone();
+            let token = token.clone();
+            async move {
+                let response = self
+                    .client
+                    .post(format!("{}/reactions.add", SLACK_API_BASE))
+                    .header("Authorization", format!("Bearer {}", token))
+                    .json(&serde_json::json!({
+                        "channel": channel_id,
+                        "timestamp": ts,
+                        "name": reaction,
+                    }))
+                    .send()
+                    .await?;
 
-        if data.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
-            Ok(())
-        } else {
-            Err(anyhow!(
-                "Failed to add reaction: {:?}",
-                data.get("error").and_then(|v| v.as_str())
-            ))
-        }
+                let status = response.status();
+                let data: Value = response.json().await?;
+
+                if data.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
+                    Ok(())
+                } else {
+                    let error_msg = data.get("error").and_then(|v| v.as_str()).unwrap_or("unknown");
+                    if error_msg == "rate_limited" || status.as_u16() == 429 {
+                        return Err(anyhow!("429"));
+                    }
+                    Err(anyhow!("Failed to add reaction: {}", error_msg))
+                }
+            }
+        }).await
     }
 
     pub async fn remove_reaction(
@@ -749,28 +792,43 @@ impl SlackApi {
         ts: &str,
         reaction: &str,
     ) -> Result<()> {
-        let response = self
-            .client
-            .post(format!("{}/reactions.remove", SLACK_API_BASE))
-            .header("Authorization", format!("Bearer {}", token))
-            .json(&serde_json::json!({
-                "channel": channel_id,
-                "timestamp": ts,
-                "name": reaction,
-            }))
-            .send()
-            .await?;
+        let channel_id = channel_id.to_string();
+        let ts = ts.to_string();
+        let reaction = reaction.to_string();
+        let token = token.to_string();
 
-        let data: Value = response.json().await?;
+        with_retry(move || {
+            let channel_id = channel_id.clone();
+            let ts = ts.clone();
+            let reaction = reaction.clone();
+            let token = token.clone();
+            async move {
+                let response = self
+                    .client
+                    .post(format!("{}/reactions.remove", SLACK_API_BASE))
+                    .header("Authorization", format!("Bearer {}", token))
+                    .json(&serde_json::json!({
+                        "channel": channel_id,
+                        "timestamp": ts,
+                        "name": reaction,
+                    }))
+                    .send()
+                    .await?;
 
-        if data.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
-            Ok(())
-        } else {
-            Err(anyhow!(
-                "Failed to remove reaction: {:?}",
-                data.get("error").and_then(|v| v.as_str())
-            ))
-        }
+                let status = response.status();
+                let data: Value = response.json().await?;
+
+                if data.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
+                    Ok(())
+                } else {
+                    let error_msg = data.get("error").and_then(|v| v.as_str()).unwrap_or("unknown");
+                    if error_msg == "rate_limited" || status.as_u16() == 429 {
+                        return Err(anyhow!("429"));
+                    }
+                    Err(anyhow!("Failed to remove reaction: {}", error_msg))
+                }
+            }
+        }).await
     }
 
     pub async fn get_thread_replies(
@@ -779,35 +837,48 @@ impl SlackApi {
         channel_id: &str,
         thread_ts: &str,
     ) -> Result<Vec<Message>> {
-        let response = self
-            .client
-            .get(format!("{}/conversations.replies", SLACK_API_BASE))
-            .header("Authorization", format!("Bearer {}", token))
-            .query(&[("channel", channel_id)])
-            .query(&[("ts", thread_ts)])
-            .send()
-            .await?;
+        let channel_id = channel_id.to_string();
+        let thread_ts = thread_ts.to_string();
+        let token = token.to_string();
 
-        let data: Value = response.json().await?;
+        with_retry(move || {
+            let channel_id = channel_id.clone();
+            let thread_ts = thread_ts.clone();
+            let token = token.clone();
+            async move {
+                let response = self
+                    .client
+                    .get(format!("{}/conversations.replies", SLACK_API_BASE))
+                    .header("Authorization", format!("Bearer {}", token))
+                    .query(&[("channel", channel_id.as_str())])
+                    .query(&[("ts", thread_ts.as_str())])
+                    .send()
+                    .await?;
 
-        if !data.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
-            return Err(anyhow!(
-                "Failed to get thread replies: {:?}",
-                data.get("error").and_then(|v| v.as_str())
-            ));
-        }
+                let status = response.status();
+                let data: Value = response.json().await?;
 
-        let empty: Vec<serde_json::Value> = Vec::new();
-        let messages = data
-            .get("messages")
-            .and_then(|v| v.as_array())
-            .unwrap_or(&empty);
-        let users_map = self.get_users_cached(token).await;
+                if !data.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
+                    let error_msg = data.get("error").and_then(|v| v.as_str()).unwrap_or("unknown");
+                    if error_msg == "rate_limited" || status.as_u16() == 429 {
+                        return Err(anyhow!("429"));
+                    }
+                    return Err(anyhow!("Failed to get thread replies: {}", error_msg));
+                }
 
-        Ok(messages
-            .iter()
-            .filter_map(|m| Message::from_slack_api(m, &users_map))
-            .collect())
+                let empty: Vec<serde_json::Value> = Vec::new();
+                let messages = data
+                    .get("messages")
+                    .and_then(|v| v.as_array())
+                    .unwrap_or(&empty);
+                let users_map = self.get_users_cached(&token).await;
+
+                Ok(messages
+                    .iter()
+                    .filter_map(|m| Message::from_slack_api(m, &users_map))
+                    .collect())
+            }
+        }).await
     }
 
     pub async fn upload_file(

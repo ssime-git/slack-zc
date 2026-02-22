@@ -2,8 +2,4 @@
 target/
 .opencode/
 docs/
-.planning/
-target/
-.opencode/
-docs/
 .env

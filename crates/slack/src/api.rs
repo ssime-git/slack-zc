@@ -296,97 +296,149 @@ impl SlackApi {
     }
 
     pub async fn list_channels(&self, token: &str) -> Result<Vec<Channel>> {
-        let response = self
-            .client
-            .get(format!("{}/conversations.list", SLACK_API_BASE))
-            .header("Authorization", format!("Bearer {}", token))
-            .query(&[("types", "public_channel,private_channel")])
-            .query(&[("exclude_archived", "true")])
-            .send()
-            .await?;
+        let mut all_channels = Vec::new();
+        let mut cursor: Option<String> = None;
+        let limit = 200; // Max limit per page
 
-        let data: Value = response.json().await?;
+        loop {
+            let mut req = self
+                .client
+                .get(format!("{}/conversations.list", SLACK_API_BASE))
+                .header("Authorization", format!("Bearer {}", token))
+                .query(&[("types", "public_channel,private_channel")])
+                .query(&[("exclude_archived", "true")])
+                .query(&[("limit", limit.to_string().as_str())]);
 
-        if !data.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
-            return Err(anyhow!(
-                "Failed to list channels: {:?}",
-                data.get("error").and_then(|v| v.as_str())
-            ));
+            if let Some(ref c) = cursor {
+                req = req.query(&[("cursor", c.as_str())]);
+            }
+
+            let response = req.send().await?;
+            let data: Value = response.json().await?;
+
+            if !data.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
+                return Err(anyhow!(
+                    "Failed to list channels: {:?}",
+                    data.get("error").and_then(|v| v.as_str())
+                ));
+            }
+
+            let empty: Vec<serde_json::Value> = Vec::new();
+            let channels = data
+                .get("channels")
+                .and_then(|v| v.as_array())
+                .unwrap_or(&empty);
+
+            for c in channels.iter() {
+                if let Some(channel) = self.parse_channel(c, false) {
+                    all_channels.push(channel);
+                }
+            }
+
+            // Check for next page
+            cursor = data
+                .get("response_metadata")
+                .and_then(|m| m.get("next_cursor"))
+                .and_then(|c| c.as_str())
+                .filter(|s| !s.is_empty())
+                .map(String::from);
+
+            if cursor.is_none() {
+                break;
+            }
         }
 
-        let empty: Vec<serde_json::Value> = Vec::new();
-        let channels = data
-            .get("channels")
-            .and_then(|v| v.as_array())
-            .unwrap_or(&empty);
+        Ok(all_channels)
+    }
 
-        Ok(channels
-            .iter()
-            .filter_map(|c| {
-                Some(Channel {
-                    id: c.get("id")?.as_str()?.to_string(),
-                    name: c.get("name")?.as_str()?.to_string(),
-                    is_dm: false,
-                    is_group: c.get("is_group").and_then(|v| v.as_bool()).unwrap_or(false),
-                    is_im: false,
-                    unread_count: 0,
-                    purpose: c
-                        .get("purpose")
-                        .and_then(|p| p.get("value"))
-                        .and_then(|v| v.as_str())
-                        .map(String::from),
-                    topic: c
-                        .get("topic")
-                        .and_then(|t| t.get("value"))
-                        .and_then(|v| v.as_str())
-                        .map(String::from),
-                    user: None,
-                })
-            })
-            .collect())
+    fn parse_channel(&self, c: &Value, is_dm: bool) -> Option<Channel> {
+        Some(Channel {
+            id: c.get("id")?.as_str()?.to_string(),
+            name: c.get("name")?.as_str()?.to_string(),
+            is_dm,
+            is_group: c.get("is_group").and_then(|v| v.as_bool()).unwrap_or(false),
+            is_im: c.get("is_im").and_then(|v| v.as_bool()).unwrap_or(false),
+            unread_count: 0,
+            purpose: c
+                .get("purpose")
+                .and_then(|p| p.get("value"))
+                .and_then(|v| v.as_str())
+                .map(String::from),
+            topic: c
+                .get("topic")
+                .and_then(|t| t.get("value"))
+                .and_then(|v| v.as_str())
+                .map(String::from),
+            user: c.get("user").and_then(|v| v.as_str()).map(String::from),
+        })
     }
 
     pub async fn list_dms(&self, token: &str) -> Result<Vec<Channel>> {
-        let response = self
-            .client
-            .get(format!("{}/conversations.list", SLACK_API_BASE))
-            .header("Authorization", format!("Bearer {}", token))
-            .query(&[("types", "im")])
-            .send()
-            .await?;
+        let mut all_dms = Vec::new();
+        let mut cursor: Option<String> = None;
+        let limit = 200;
 
-        let data: Value = response.json().await?;
+        loop {
+            let mut req = self
+                .client
+                .get(format!("{}/conversations.list", SLACK_API_BASE))
+                .header("Authorization", format!("Bearer {}", token))
+                .query(&[("types", "im")])
+                .query(&[("limit", limit.to_string().as_str())]);
 
-        if !data.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
-            return Err(anyhow!(
-                "Failed to list DMs: {:?}",
-                data.get("error").and_then(|v| v.as_str())
-            ));
+            if let Some(ref c) = cursor {
+                req = req.query(&[("cursor", c.as_str())]);
+            }
+
+            let response = req.send().await?;
+            let data: Value = response.json().await?;
+
+            if !data.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
+                return Err(anyhow!(
+                    "Failed to list DMs: {:?}",
+                    data.get("error").and_then(|v| v.as_str())
+                ));
+            }
+
+            let empty: Vec<serde_json::Value> = Vec::new();
+            let channels = data
+                .get("channels")
+                .and_then(|v| v.as_array())
+                .unwrap_or(&empty);
+
+            for c in channels.iter() {
+                if let Some(user) = c.get("user").and_then(|u| u.as_str()) {
+                    let mut channel = self.parse_channel(c, true).unwrap_or_else(|| Channel {
+                        id: String::new(),
+                        name: user.to_string(),
+                        is_dm: true,
+                        is_group: false,
+                        is_im: true,
+                        unread_count: 0,
+                        purpose: None,
+                        topic: None,
+                        user: Some(user.to_string()),
+                    });
+                    channel.is_dm = true;
+                    channel.is_im = true;
+                    all_dms.push(channel);
+                }
+            }
+
+            // Check for next page
+            cursor = data
+                .get("response_metadata")
+                .and_then(|m| m.get("next_cursor"))
+                .and_then(|c| c.as_str())
+                .filter(|s| !s.is_empty())
+                .map(String::from);
+
+            if cursor.is_none() {
+                break;
+            }
         }
 
-        let empty: Vec<serde_json::Value> = Vec::new();
-        let channels = data
-            .get("channels")
-            .and_then(|v| v.as_array())
-            .unwrap_or(&empty);
-
-        Ok(channels
-            .iter()
-            .filter_map(|c| {
-                let name = c.get("user")?.as_str().map(|s| s.to_string())?;
-                Some(Channel {
-                    id: c.get("id")?.as_str()?.to_string(),
-                    name,
-                    is_dm: true,
-                    is_group: false,
-                    is_im: true,
-                    unread_count: 0,
-                    purpose: None,
-                    topic: None,
-                    user: c.get("user").and_then(|v| v.as_str()).map(String::from),
-                })
-            })
-            .collect())
+        Ok(all_dms)
     }
 
     pub async fn get_history(

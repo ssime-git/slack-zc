@@ -70,6 +70,27 @@ impl GatewayClient {
         }
     }
 
+    
+    pub async fn check_pairing_status(&self) -> Result<bool> {
+        let response = self
+            .http
+            .get(format!("{}/health", self.base_url))
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            return Ok(false);
+        }
+
+        #[derive(Deserialize)]
+        struct HealthResponse {
+            paired: bool,
+        }
+
+        let data: HealthResponse = response.json().await?;
+        Ok(data.paired)
+    }
+
     pub async fn send_to_agent(&self, payload: &serde_json::Value) -> Result<String> {
         let bearer = self
             .bearer

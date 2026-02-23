@@ -65,11 +65,16 @@ impl AgentRunner {
             .stdout
             .take()
             .ok_or_else(|| anyhow!("Failed to capture stdout"))?;
+        let stderr = child
+            .stderr
+            .take()
+            .ok_or_else(|| anyhow!("Failed to capture stderr"))?;
+        
         let mut reader = BufReader::new(stdout).lines();
 
-        let re = Regex::new(r"(?i)pairing\s+code[:\s]+(\d{6})").unwrap();
+        let re = Regex::new(r"(?i)(?:pairing.code|pairing.code).*?(\d{6})").unwrap();
 
-        let code = timeout(Duration::from_secs(5), async {
+        let code = timeout(Duration::from_secs(10), async {
             while let Some(line) = reader.next_line().await? {
                 debug!("ZeroClaw stdout: {}", line);
                 if let Some(caps) = re.captures(&line) {
@@ -119,6 +124,30 @@ impl AgentRunner {
         info!("ZeroClaw gateway started and authenticated");
         Ok(gateway)
     }
+
+    pub async fn connect_to_running_gateway(&mut self) -> Result<GatewayClient> {
+        info!("Attempting to connect to existing ZeroClaw gateway on port {}", self.gateway_port);
+        
+        let gateway = GatewayClient::new(self.gateway_port);
+        
+        // Check if gateway is running and not paired
+        match gateway.check_pairing_status().await {
+            Ok(paired) => {
+                if paired {
+                    info!("Gateway is already paired but no bearer token stored");
+                    return Err(anyhow!("Gateway already paired. Please check configuration."));
+                }
+                // Not paired - gateway is running and waiting for a pairing code
+                info!("Gateway is running and waiting for pairing code");
+                Err(anyhow!("Gateway needs pairing. Check your terminal for the 6-digit code."))
+            }
+            Err(_) => {
+                info!("No running ZeroClaw gateway detected on port {}", self.gateway_port);
+                Err(anyhow!("ZeroClaw gateway not accessible. Make sure it's running."))
+            }
+        }
+    }
+
 
     pub fn get_gateway(&self) -> Option<&GatewayClient> {
         self.gateway.as_ref()

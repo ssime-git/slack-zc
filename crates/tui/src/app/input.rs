@@ -265,56 +265,127 @@ impl App {
             return Ok(false);
         }
 
+        // Global Ctrl shortcuts work in all focus modes
         match key.code {
             KeyCode::Char('w') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 self.show_workspace_picker = true;
+                return Ok(false);
             }
-            KeyCode::Char('n') if key.modifiers.contains(KeyModifiers::CONTROL) => {}
+            KeyCode::Char('n') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                return Ok(false);
+            }
             KeyCode::Char('k') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 self.show_channel_search = true;
+                return Ok(false);
             }
-            KeyCode::Up => {
-                if let Some(ref mut menu) = self.context_menu {
-                    if menu.selected > 0 {
-                        menu.selected -= 1;
+            KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                self.copy_selected_message()?;
+                return Ok(false);
+            }
+            _ => {}
+        }
+
+        // Alt+Up/Down switches channels regardless of focus
+        if key.modifiers.contains(KeyModifiers::ALT) {
+            match key.code {
+                KeyCode::Up => {
+                    if self.sidebar_cursor > 0 {
+                        self.sidebar_cursor -= 1;
+                        self.select_channel(self.sidebar_cursor);
                     }
                     return Ok(false);
                 }
-                if self.scroll_offset > 0 {
-                    self.scroll_offset -= 1;
-                }
-            }
-            KeyCode::Down => {
-                if let Some(ref mut menu) = self.context_menu {
-                    if menu.selected < menu.items.len().saturating_sub(1) {
-                        menu.selected += 1;
+                KeyCode::Down => {
+                    let max = self.channels.len().saturating_sub(1);
+                    if self.sidebar_cursor < max {
+                        self.sidebar_cursor += 1;
+                        self.select_channel(self.sidebar_cursor);
                     }
                     return Ok(false);
                 }
-                self.scroll_offset += 1;
+                _ => {}
+            }
+        }
+
+        // Tab cycles focus
+        if key.code == KeyCode::Tab {
+            self.focus = self.focus.next();
+            return Ok(false);
+        }
+
+        // Context menu takes priority when visible
+        if self.context_menu.is_some() {
+            match key.code {
+                KeyCode::Up => {
+                    if let Some(ref mut menu) = self.context_menu {
+                        if menu.selected > 0 {
+                            menu.selected -= 1;
+                        }
+                    }
+                }
+                KeyCode::Down => {
+                    if let Some(ref mut menu) = self.context_menu {
+                        if menu.selected < menu.items.len().saturating_sub(1) {
+                            menu.selected += 1;
+                        }
+                    }
+                }
+                KeyCode::Enter => {
+                    self.handle_context_menu_action();
+                }
+                KeyCode::Esc => {
+                    self.context_menu = None;
+                }
+                _ => {}
+            }
+            return Ok(false);
+        }
+
+        // Edit message overlay takes priority
+        if self.edit_message.is_some() {
+            match key.code {
+                KeyCode::Enter => {
+                    self.save_edited_message()?;
+                }
+                KeyCode::Esc => {
+                    self.edit_message = None;
+                }
+                _ => {}
+            }
+            return Ok(false);
+        }
+
+        // Dispatch based on current focus
+        match self.focus {
+            Focus::Sidebar => self.handle_sidebar_keys(key)?,
+            Focus::Messages => self.handle_messages_keys(key)?,
+            Focus::Input => self.handle_input_keys(key)?,
+        }
+
+        Ok(false)
+    }
+
+    fn handle_sidebar_keys(&mut self, key: KeyEvent) -> Result<()> {
+        match key.code {
+            KeyCode::Down | KeyCode::Char('j') => {
+                let max = self.channels.len().saturating_sub(1);
+                if self.sidebar_cursor < max {
+                    self.sidebar_cursor += 1;
+                }
+            }
+            KeyCode::Up | KeyCode::Char('k') => {
+                if self.sidebar_cursor > 0 {
+                    self.sidebar_cursor -= 1;
+                }
             }
             KeyCode::Enter => {
-                if self.context_menu.is_some() {
-                    self.handle_context_menu_action();
-                    return Ok(false);
-                }
-                if self.edit_message.is_some() {
-                    self.save_edited_message()?;
-                    return Ok(false);
-                }
-                self.handle_input_submit()?;
+                self.select_channel(self.sidebar_cursor);
+                self.focus = Focus::Messages;
             }
-            KeyCode::Esc => {
-                if self.context_menu.is_some() {
-                    self.context_menu = None;
-                    return Ok(false);
-                }
-                if self.edit_message.is_some() {
-                    self.edit_message = None;
-                    return Ok(false);
-                }
-                self.input.clear();
+            KeyCode::Char('i') => {
+                self.focus = Focus::Input;
             }
+            // Single-letter shortcuts work in sidebar focus
             KeyCode::Char('t') => {
                 if let Some(ref channel) = self.selected_channel {
                     if let Some(ch) = self.channels.get(*channel) {
@@ -360,37 +431,112 @@ impl App {
                     self.show_error_details = !self.show_error_details;
                 }
             }
-            KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                self.copy_selected_message()?;
+            KeyCode::Esc => {
+                self.input.clear();
             }
-            KeyCode::Char('#') => {
-                if self.edit_message.is_none() {
-                    let should_trigger = self.input.buffer.is_empty() || self.input.buffer.ends_with(' ');
-                    self.input.handle_char('#');
-                    if should_trigger {
-                        self.channel_picker = Some(ChannelPicker {
-                            query: String::new(),
-                            filtered_channels: self.channels.clone(),
-                            selected_index: 0,
-                            trigger_position: self.input.buffer.len().saturating_sub(1),
-                        });
+            _ => {}
+        }
+        Ok(())
+    }
+
+    fn handle_messages_keys(&mut self, key: KeyEvent) -> Result<()> {
+        match key.code {
+            KeyCode::Down | KeyCode::Char('j') => {
+                self.scroll_offset += 1;
+            }
+            KeyCode::Up | KeyCode::Char('k') => {
+                if self.scroll_offset > 0 {
+                    self.scroll_offset -= 1;
+                }
+            }
+            KeyCode::Char('i') => {
+                self.focus = Focus::Input;
+            }
+            KeyCode::Esc => {
+                self.focus = Focus::Sidebar;
+            }
+            // Single-letter shortcuts work in messages focus
+            KeyCode::Char('t') => {
+                if let Some(ref channel) = self.selected_channel {
+                    if let Some(ch) = self.channels.get(*channel) {
+                        let channel_id = ch.id.clone();
+                        self.toggle_thread_collapse(&channel_id);
                     }
                 }
             }
-            KeyCode::Char(c) => {
-                if self.edit_message.is_none() {
-                    self.input.handle_char(c);
+            KeyCode::Char('e') => {
+                self.start_edit_message()?;
+            }
+            KeyCode::Char('d') => {
+                self.delete_selected_message()?;
+            }
+            KeyCode::Char('D') => {
+                self.load_history_for_date()?;
+            }
+            KeyCode::Char('r') => {
+                self.show_reaction_picker()?;
+            }
+            KeyCode::Char('g') => {
+                self.show_jump_to_time = true;
+                self.jump_to_time_buffer.clear();
+            }
+            KeyCode::Char('f') => {
+                self.show_user_filter = !self.show_user_filter;
+                if self.show_user_filter {
+                    if let Some(ref channel) = self.selected_channel {
+                        if let Some(ch) = self.channels.get(*channel) {
+                            if let Some(messages) = self.messages.get(&ch.id) {
+                                if let Some(msg) = messages.back() {
+                                    self.message_filter.user_id = Some(msg.user_id.clone());
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    self.message_filter.user_id = None;
                 }
             }
-            KeyCode::Backspace => {
-                if self.edit_message.is_none() {
-                    self.input.handle_backspace();
+            KeyCode::Char('E') => {
+                if self.last_error.is_some() {
+                    self.show_error_details = !self.show_error_details;
                 }
             }
             _ => {}
         }
+        Ok(())
+    }
 
-        Ok(false)
+    fn handle_input_keys(&mut self, key: KeyEvent) -> Result<()> {
+        match key.code {
+            KeyCode::Esc => {
+                self.input.clear();
+                self.focus = Focus::Sidebar;
+            }
+            KeyCode::Enter => {
+                self.handle_input_submit()?;
+                self.focus = Focus::Sidebar;
+            }
+            KeyCode::Backspace => {
+                self.input.handle_backspace();
+            }
+            KeyCode::Char('#') => {
+                let should_trigger = self.input.buffer.is_empty() || self.input.buffer.ends_with(' ');
+                self.input.handle_char('#');
+                if should_trigger {
+                    self.channel_picker = Some(ChannelPicker {
+                        query: String::new(),
+                        filtered_channels: self.channels.clone(),
+                        selected_index: 0,
+                        trigger_position: self.input.buffer.len().saturating_sub(1),
+                    });
+                }
+            }
+            KeyCode::Char(c) => {
+                self.input.handle_char(c);
+            }
+            _ => {}
+        }
+        Ok(())
     }
 
     fn handle_mouse_event(&mut self, mouse: MouseEvent) -> Result<bool> {
@@ -401,7 +547,9 @@ impl App {
                 if let Some(target) = self.hit_test(mouse.column, mouse.row) {
                     match target {
                         HitTarget::Channel(idx) => {
+                            self.sidebar_cursor = idx;
                             self.select_channel(idx);
+                            self.focus = Focus::Messages;
                         }
                         HitTarget::WorkspaceTab(idx) => {
                             self.switch_workspace(idx);
@@ -411,6 +559,15 @@ impl App {
                         }
                         HitTarget::AgentDivider => {
                             self.drag_target = Some(DragTarget::AgentPanel);
+                        }
+                        HitTarget::Messages => {
+                            self.focus = Focus::Messages;
+                        }
+                        HitTarget::InputBar => {
+                            self.focus = Focus::Input;
+                        }
+                        HitTarget::AgentPanel => {
+                            // AgentPanel is always visible on the right, no separate focus
                         }
                     }
                 }
@@ -500,7 +657,9 @@ impl App {
                 return match panel.panel_type {
                     PanelType::Sidebar => self.hit_sidebar(panel.rect, col, row),
                     PanelType::Topbar => self.hit_topbar(panel.rect, col, row),
-                    _ => None,
+                    PanelType::Messages => Some(HitTarget::Messages),
+                    PanelType::InputBar => Some(HitTarget::InputBar),
+                    PanelType::AgentPanel => Some(HitTarget::AgentPanel),
                 };
             }
         }
@@ -550,4 +709,7 @@ enum HitTarget {
     WorkspaceTab(usize),
     SidebarDivider,
     AgentDivider,
+    Messages,
+    InputBar,
+    AgentPanel,
 }

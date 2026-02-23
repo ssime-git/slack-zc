@@ -29,7 +29,7 @@ mod render;
 mod state;
 mod types;
 
-pub use state::{App, ChannelPicker, ConfirmationDialog};
+pub use state::{App, ChannelPicker, ConfirmationDialog, Focus};
 pub use types::{
     AgentResponse, AppAsyncEvent, ContextMenu, ContextMenuAction, ContextMenuItem, EditState,
     MessageFilter,

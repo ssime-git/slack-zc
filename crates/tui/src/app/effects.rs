@@ -2,7 +2,42 @@ use super::*;
 
 impl App {
     pub async fn init(&mut self, _config: &Config) -> Result<()> {
-        if let Some(session) = Session::load()? {
+        let mut session_opt = Session::load()?;
+
+        if session_opt.is_none() {
+            if let (Ok(app_token), Ok(user_token)) = (
+                std::env::var("SLACK_APP_TOKEN"),
+                std::env::var("SLACK_USER_TOKENS"),
+            ) {
+                match self.slack_api.test_auth(&user_token).await {
+                    Ok((team_id, team_name, user_id)) => {
+                        let mut session = Session {
+                            workspaces: Vec::new(),
+                            zeroclaw_bearer: None,
+                        };
+                        let workspace = Workspace {
+                            team_id,
+                            team_name,
+                            xoxp_token: user_token,
+                            xapp_token: app_token,
+                            user_id: Some(user_id),
+                            active: true,
+                        };
+                        session.add_workspace(workspace);
+                        if let Err(e) = session.save() {
+                            tracing::error!("Failed to save session from env: {}", e);
+                        } else {
+                            session_opt = Some(session);
+                        }
+                    }
+                    Err(e) => {
+                        tracing::error!("Env token auth test failed: {}", e);
+                    }
+                }
+            }
+        }
+
+        if let Some(session) = session_opt {
             self.session = Some(session.clone());
 
             for workspace in &session.workspaces {
@@ -11,6 +46,15 @@ impl App {
                 match self.slack_api.list_channels(&workspace.xoxp_token).await {
                     Ok(channels) => ws_state.channels = channels,
                     Err(e) => self.report_error("Failed to load channels", e),
+                }
+
+
+                // Load DMs in addition to channels
+                match self.slack_api.list_dms(&workspace.xoxp_token).await {
+                    Ok(dms) => {
+                        ws_state.channels.extend(dms);
+                    }
+                    Err(e) => self.report_error("Failed to load DMs", e),
                 }
 
                 if let Some(ref event_tx) = self.event_tx {
@@ -34,6 +78,9 @@ impl App {
 
             self.is_loading = false;
             self.clear_error();
+
+            // Auto-start zeroclaw agent
+            self.start_zeroclaw_auto();
         } else {
             self.onboarding = Some(OnboardingState::new());
             self.is_loading = false;
@@ -41,10 +88,70 @@ impl App {
 
         Ok(())
     }
+    pub(super) fn start_zeroclaw_auto(&mut self) {
+        if !self.config.zeroclaw.auto_start {
+            return;
+        }
+
+        let binary_path = self.config.zeroclaw.binary_path.clone();
+        let gateway_port = self.config.zeroclaw.gateway_port;
+        let bearer = self
+            .session
+            .as_ref()
+            .and_then(|s| s.zeroclaw_bearer.clone());
+
+        self.agent_status = AgentStatus::Starting;
+        self.spawn_app_task(async move {
+            let mut runner = AgentRunner::new(binary_path, gateway_port);
+            if let Err(e) = runner.check_binary().await {
+                return AppAsyncEvent::ZeroClawPairingFinished {
+                    runner: None,
+                    error: Some(format!("ZeroClaw binary not found: {}", e)),
+                };
+            }
+
+            if let Some(bearer) = bearer {
+                match runner.start_with_bearer(&bearer).await {
+                    Ok(_) => AppAsyncEvent::ZeroClawPairingFinished {
+                        runner: Some(runner),
+                        error: None,
+                    },
+                    Err(e) => {
+                        // Bearer expired, fall back to pairing
+                        tracing::warn!("Bearer auth failed ({}), attempting fresh pairing", e);
+                        match runner.start_and_pair().await {
+                            Ok(_) => AppAsyncEvent::ZeroClawPairingFinished {
+                                runner: Some(runner),
+                                error: None,
+                            },
+                            Err(e) => AppAsyncEvent::ZeroClawPairingFinished {
+                                runner: None,
+                                error: Some(format!("ZeroClaw pairing failed: {}", e)),
+                            },
+                        }
+                    }
+                }
+            } else {
+                match runner.start_and_pair().await {
+                    Ok(_) => AppAsyncEvent::ZeroClawPairingFinished {
+                        runner: Some(runner),
+                        error: None,
+                    },
+                    Err(e) => AppAsyncEvent::ZeroClawPairingFinished {
+                        runner: None,
+                        error: Some(format!("ZeroClaw pairing failed: {}", e)),
+                    },
+                }
+            }
+        });
+    }
+
     pub(super) fn start_zeroclaw_pairing(&mut self) {
+        let binary_path = self.config.zeroclaw.binary_path.clone();
+        let gateway_port = self.config.zeroclaw.gateway_port;
         self.agent_status = AgentStatus::Pairing;
         self.spawn_app_task(async move {
-            let mut runner = AgentRunner::new("zeroclaw".to_string(), 8080);
+            let mut runner = AgentRunner::new(binary_path, gateway_port);
             if let Err(e) = runner.check_binary().await {
                 return AppAsyncEvent::ZeroClawPairingFinished {
                     runner: None,

@@ -260,7 +260,7 @@ impl SlackApi {
         }
     }
 
-    pub async fn test_auth(&self, token: &str) -> Result<(String, String)> {
+    pub async fn test_auth(&self, token: &str) -> Result<(String, String, String)> {
         let response = self
             .client
             .post(format!("{}/auth.test", SLACK_API_BASE))
@@ -281,7 +281,12 @@ impl SlackApi {
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string();
-            Ok((team_id, team))
+            let user_id = data
+                .get("user_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            Ok((team_id, team, user_id))
         } else {
             Err(anyhow!(
                 "Auth test failed: {:?}",

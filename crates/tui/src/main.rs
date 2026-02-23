@@ -8,6 +8,7 @@ mod ui;
 use app::App;
 use config::Config;
 use directories::ProjectDirs;
+use dotenvy::dotenv;
 use ratatui::crossterm::event::{
     self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyModifiers,
 };
@@ -25,6 +26,8 @@ fn get_config_path() -> PathBuf {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let _ = dotenv(); // Try to load .env file, ignore if not found
+
     terminal::enable_raw_mode()?;
     let mut terminal = ratatui::init();
     ratatui::crossterm::execute!(io::stdout(), EnterAlternateScreen, EnableMouseCapture)?;
@@ -45,6 +48,11 @@ fn run(
     let config = Config::load_or_default(&config_path);
 
     let rt = tokio::runtime::Runtime::new()?;
+
+    // Enter the runtime context for the entire app lifecycle so that
+    // tokio::spawn works from synchronous code (e.g. spawn_app_task).
+    let _guard = rt.enter();
+
     let mut app = App::new(config.clone());
 
     rt.block_on(async {

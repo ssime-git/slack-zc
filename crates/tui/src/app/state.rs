@@ -1,6 +1,23 @@
 use super::*;
 use std::time::Instant;
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Focus {
+    Sidebar,
+    Messages,
+    Input,
+}
+
+impl Focus {
+    pub fn next(self) -> Self {
+        match self {
+            Focus::Sidebar => Focus::Messages,
+            Focus::Messages => Focus::Input,
+            Focus::Input => Focus::Sidebar,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ConfirmationDialog {
     pub command: String,
@@ -64,6 +81,9 @@ pub struct App {
     pub show_error_details: bool,
     pub confirmation_dialog: Option<ConfirmationDialog>,
     pub channel_picker: Option<ChannelPicker>,
+    pub focus: Focus,
+    pub sidebar_cursor: usize,
+    pub sidebar_scroll: usize,
 }
 
 impl Default for App {
@@ -124,6 +144,9 @@ impl App {
             show_error_details: false,
             confirmation_dialog: None,
             channel_picker: None,
+            focus: Focus::Sidebar,
+            sidebar_cursor: 0,
+            sidebar_scroll: 0,
         }
     }
 }

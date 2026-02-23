@@ -31,7 +31,7 @@ impl App {
 
         self.layout.calculate_layout(area);
 
-        let panels = self.layout.get_panels();
+        let panels = self.layout.get_panels().to_vec();
 
         for panel in panels {
             match panel.panel_type {
@@ -247,8 +247,14 @@ impl App {
             String::new()
         };
 
+        let focus_indicator = match self.focus {
+            Focus::Sidebar => "[sidebar]",
+            Focus::Messages => "[messages]",
+            Focus::Input => "[input]",
+        };
+
         let text = format!(
-            " ● {}{}   {}{}   [g] jump   [f] filter   [E] error   [?] help",
+            " ● {}{}   {}{}   {}   [Tab] focus   [?] help",
             workspace_tabs.join(" "),
             typing_indicator,
             agent_indicator,
@@ -256,45 +262,115 @@ impl App {
                 "   ⚠ error"
             } else {
                 ""
-            }
+            },
+            focus_indicator,
         );
 
         frame.render_widget(Paragraph::new(text).block(Block::default()), area);
     }
 
-    fn render_sidebar(&self, frame: &mut Frame, area: Rect) {
+    fn render_sidebar(&mut self, frame: &mut Frame, area: Rect) {
+        use ratatui::style::{Color, Modifier, Style};
         use ratatui::widgets::{Block, Borders, List, ListItem};
+
+        let is_focused = self.focus == Focus::Sidebar;
+
+        // Visible rows inside the border (height minus 2 for borders, minus 1 for header).
+        let visible_rows = area.height.saturating_sub(3) as usize;
+
+        // Keep the cursor visible by adjusting sidebar_scroll.
+        if visible_rows > 0 {
+            if self.sidebar_cursor < self.sidebar_scroll {
+                self.sidebar_scroll = self.sidebar_cursor;
+            } else if self.sidebar_cursor >= self.sidebar_scroll + visible_rows {
+                self.sidebar_scroll = self.sidebar_cursor + 1 - visible_rows;
+            }
+        }
 
         let mut items: Vec<ListItem> = vec![];
 
+        let channels_title = if self.search_query.is_empty() {
+            " CHANNELS ".to_string()
+        } else {
+            format!(" CHANNELS [{}] ", self.search_query)
+        };
         items.push(
-            ListItem::new(" CHANNELS ").style(
-                ratatui::style::Style::default().add_modifier(ratatui::style::Modifier::BOLD),
+            ListItem::new(channels_title).style(
+                Style::default().add_modifier(Modifier::BOLD),
             ),
         );
 
-        for (i, channel) in self.channels.iter().enumerate() {
-            let prefix = if Some(i) == self.selected_channel {
-                "> "
+        // Filter channels by search query
+        let filtered_channels: Vec<_> = if self.search_query.is_empty() {
+            self.channels.clone()
+        } else {
+            let query = self.search_query.to_lowercase();
+            self.channels.iter()
+                .filter(|ch| ch.name.to_lowercase().contains(&query) || (ch.user.as_ref().map_or(false, |u| u.to_lowercase().contains(&query))))
+                .cloned()
+                .collect()
+        };
+
+        // Adjust sidebar_cursor if out of bounds
+        if self.sidebar_cursor >= filtered_channels.len() && !filtered_channels.is_empty() {
+            self.sidebar_cursor = filtered_channels.len() - 1;
+        } else if filtered_channels.is_empty() {
+            self.sidebar_cursor = 0;
+        }
+
+        let end = (self.sidebar_scroll + visible_rows).min(filtered_channels.len());
+        for i in self.sidebar_scroll..end {
+            let channel = &filtered_channels[i];
+            let is_selected = Some(i) == self.selected_channel;
+            let is_cursor = i == self.sidebar_cursor && is_focused;
+
+            let prefix = if is_cursor && is_selected {
+                ">> "
+            } else if is_cursor {
+                " > "
+            } else if is_selected {
+                " # "
             } else {
-                "  "
+                "   "
             };
+
             let name = channel.display_name();
             let unread = if channel.unread_count > 0 {
                 format!(" {}", channel.unread_count)
             } else {
                 String::new()
             };
-            items.push(ListItem::new(format!("{}{}{}", prefix, name, unread)));
+
+            let style = if is_cursor {
+                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+            } else if is_selected {
+                Style::default().fg(Color::Cyan)
+            } else {
+                Style::default()
+            };
+
+            items.push(ListItem::new(format!("{}{}{}", prefix, name, unread)).style(style));
         }
 
+        let border_style = if is_focused {
+            Style::default().fg(Color::Yellow)
+        } else {
+            Style::default()
+        };
+
         frame.render_widget(
-            List::new(items).block(Block::default().borders(Borders::ALL).title(" Channels ")),
+            List::new(items).block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title(" Channels ")
+                    .border_style(border_style),
+            ),
             area,
         );
     }
 
     fn render_messages(&self, frame: &mut Frame, area: Rect) {
+        use ratatui::style::{Color, Style};
         use ratatui::widgets::{Block, Borders, Paragraph};
 
         let content = if let Some(ref channel) = self.selected_channel {
@@ -388,9 +464,19 @@ impl App {
 
         let text = content.unwrap_or_else(|| "Select a channel to view messages".to_string());
 
+        let border_style = if self.focus == Focus::Messages {
+            Style::default().fg(Color::Yellow)
+        } else {
+            Style::default()
+        };
+
         frame.render_widget(
             Paragraph::new(text)
-                .block(Block::default().borders(Borders::ALL))
+                .block(
+                    Block::default()
+                        .borders(Borders::ALL)
+                        .border_style(border_style),
+                )
                 .scroll((self.scroll_offset as u16, 0)),
             area,
         );
@@ -516,6 +602,7 @@ impl App {
     }
 
     fn render_input_bar(&self, frame: &mut Frame, area: Rect) {
+        use ratatui::style::{Color, Style};
         use ratatui::widgets::{Block, Borders, Paragraph};
 
         let mode_indicator = match self.input.mode {
@@ -527,12 +614,24 @@ impl App {
         let text = format!("{} > {}", mode_indicator, self.input.buffer);
         let text = if self.agent_processing {
             format!("{}   [agent processing]", text)
+        } else if self.focus == Focus::Input {
+            format!("{}█", text)
         } else {
             text
         };
 
+        let border_style = if self.focus == Focus::Input {
+            Style::default().fg(Color::Yellow)
+        } else {
+            Style::default()
+        };
+
         frame.render_widget(
-            Paragraph::new(text).block(Block::default().borders(Borders::ALL)),
+            Paragraph::new(text).block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_style(border_style),
+            ),
             area,
         );
 

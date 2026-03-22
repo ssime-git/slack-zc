@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Result};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::time::Duration;
 use tracing::{debug, info};
 
@@ -20,13 +21,12 @@ impl GatewayClient {
     pub fn new(port: u16) -> Self {
         let http = Client::builder()
             .user_agent("slack-zc/0.2")
-            .timeout(Duration::from_secs(15))
             .connect_timeout(Duration::from_secs(5))
             .build()
             .unwrap_or_else(|_| Client::new());
         Self {
             http,
-            base_url: format!("http://localhost:{}", port),
+            base_url: format!("http://127.0.0.1:{}", port),
             bearer: None,
         }
     }
@@ -70,7 +70,6 @@ impl GatewayClient {
         }
     }
 
-    
     pub async fn check_pairing_status(&self) -> Result<bool> {
         let response = self
             .http
@@ -91,34 +90,71 @@ impl GatewayClient {
         Ok(data.paired)
     }
 
-    pub async fn send_to_agent(&self, payload: &serde_json::Value) -> Result<String> {
-        let bearer = self
-            .bearer
-            .as_ref()
-            .ok_or_else(|| anyhow!("Not paired with gateway"))?;
+    pub async fn api_auth_check(&self) -> Result<bool> {
+        let bearer = match self.bearer.as_ref() {
+            Some(bearer) => bearer,
+            None => return Ok(false),
+        };
 
         let response = self
             .http
-            .post(format!("{}/webhook", self.base_url))
+            .get(format!("{}/api/status", self.base_url))
             .header("Authorization", format!("Bearer {}", bearer))
+            .send()
+            .await?;
+
+        Ok(response.status().is_success())
+    }
+
+    pub async fn send_to_agent(&self, payload: &serde_json::Value) -> Result<String> {
+        let mut request = self.http.post(format!("{}/webhook", self.base_url));
+        if let Some(bearer) = self.bearer.as_ref() {
+            request = request.header("Authorization", format!("Bearer {}", bearer));
+        }
+
+        let response = request
+            .timeout(Duration::from_secs(55))
             .json(payload)
             .send()
             .await?;
 
         if !response.status().is_success() {
-            return Err(anyhow!("Webhook failed: {}", response.status()));
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            let body = body.trim();
+            if body.is_empty() {
+                return Err(anyhow!("Webhook failed: {}", status));
+            }
+            return Err(anyhow!("Webhook failed: {}: {}", status, body));
         }
 
         let text = response.text().await?;
-        let bounded = if text.chars().count() > 20_000 {
-            text.chars().take(20_000).collect()
+        let parsed_text = match serde_json::from_str::<Value>(&text) {
+            Ok(Value::Object(map)) => map
+                .get("response")
+                .and_then(Value::as_str)
+                .map(ToOwned::to_owned)
+                .or_else(|| {
+                    map.get("message")
+                        .and_then(Value::as_str)
+                        .map(ToOwned::to_owned)
+                })
+                .unwrap_or(text),
+            _ => text,
+        };
+        let bounded = if parsed_text.chars().count() > 20_000 {
+            parsed_text.chars().take(20_000).collect()
         } else {
-            text
+            parsed_text
         };
         Ok(bounded)
     }
 
     pub fn is_paired(&self) -> bool {
         self.bearer.is_some()
+    }
+
+    pub fn get_bearer(&self) -> Option<&String> {
+        self.bearer.as_ref()
     }
 }

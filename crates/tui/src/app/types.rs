@@ -8,6 +8,7 @@ pub struct AgentResponse {
 pub enum AppAsyncEvent {
     SlackSendResult {
         context: String,
+        channel_id: Option<String>,
         error: Option<String>,
     },
     ChannelHistoryLoaded {
@@ -30,7 +31,14 @@ pub enum AppAsyncEvent {
         workspace: Option<slack_zc_slack::types::Workspace>,
         error: Option<String>,
     },
-    ZeroClawPairingFinished {
+    WorkspaceChannelsLoaded {
+        team_id: String,
+        channels: Vec<slack_zc_slack::types::Channel>,
+        append: bool,
+        done: bool,
+        error: Option<String>,
+    },
+    ZeroClawConnectionFinished {
         runner: Option<slack_zc_agent::AgentRunner>,
         error: Option<String>,
     },

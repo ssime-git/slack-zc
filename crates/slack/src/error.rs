@@ -4,19 +4,19 @@ use thiserror::Error;
 pub enum ApiError {
     #[error("Authentication failed: {0}")]
     Auth(String),
-    
+
     #[error("Rate limited. Retry after {retry_after}s")]
     RateLimited { retry_after: u64 },
-    
+
     #[error("Network error: {0}")]
     Network(#[from] reqwest::Error),
-    
+
     #[error("Validation error: {0}")]
     Validation(String),
-    
+
     #[error("API error: {0}")]
     Api(String),
-    
+
     #[error("Timeout: {0}")]
     Timeout(String),
 }
@@ -34,7 +34,10 @@ impl ApiError {
     }
 
     pub fn is_retryable(&self) -> bool {
-        matches!(self, ApiError::RateLimited { .. } | ApiError::Network(_) | ApiError::Timeout(_))
+        matches!(
+            self,
+            ApiError::RateLimited { .. } | ApiError::Network(_) | ApiError::Timeout(_)
+        )
     }
 }
 
@@ -48,7 +51,10 @@ pub fn map_anyhow_error_ref(e: &anyhow::Error) -> ApiError {
     let msg = e.to_string();
     if msg.contains("429") || msg.contains("rate_limited") {
         ApiError::RateLimited { retry_after: 60 }
-    } else if msg.contains("not_authed") || msg.contains("invalid_auth") || msg.contains("token_revoked") {
+    } else if msg.contains("not_authed")
+        || msg.contains("invalid_auth")
+        || msg.contains("token_revoked")
+    {
         ApiError::Auth(msg)
     } else if msg.contains("timeout") || msg.contains("timed out") || msg.contains("connection") {
         ApiError::Timeout(msg)

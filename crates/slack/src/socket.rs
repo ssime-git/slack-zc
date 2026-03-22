@@ -313,16 +313,12 @@ mod tests {
     #[tokio::test]
     async fn test_channel_event_variants() {
         let (tx, _rx) = mpsc::unbounded_channel();
-        let client = SocketModeClient::new(
-            "xapp-test".to_string(),
-            "xoxp-test".to_string(),
-            tx,
-        );
-        
+        let _client = SocketModeClient::new("xapp-test".to_string(), "xoxp-test".to_string(), tx);
+
         let event = SlackEvent::ChannelJoined {
             channel: "C123".to_string(),
         };
-        
+
         match event {
             SlackEvent::ChannelJoined { .. } => {}
             _ => panic!("Expected ChannelJoined variant"),

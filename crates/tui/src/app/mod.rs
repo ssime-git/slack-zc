@@ -43,7 +43,9 @@ impl App {
     }
 
     pub(super) fn actionable_error(error: &anyhow::Error) -> String {
-        slack_zc_slack::error::map_anyhow_error_ref(error).user_message().to_string()
+        slack_zc_slack::error::map_anyhow_error_ref(error)
+            .user_message()
+            .to_string()
     }
 
     pub(super) fn clear_error(&mut self) {
@@ -69,6 +71,14 @@ impl App {
                 let _ = tx.send(event);
             });
         }
+    }
+
+    pub(super) fn send_app_event(
+        tx: &mpsc::UnboundedSender<AppAsyncEvent>,
+        event: AppAsyncEvent,
+    ) -> Result<()> {
+        tx.send(event)
+            .map_err(|e| anyhow::anyhow!("failed to send app event: {}", e))
     }
 }
 

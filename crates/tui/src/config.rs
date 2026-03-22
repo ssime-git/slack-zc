@@ -3,30 +3,39 @@ use std::path::PathBuf;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
+    #[serde(default)]
     pub slack: SlackConfig,
+    #[serde(default)]
     pub zeroclaw: ZeroClawConfig,
+    #[serde(default)]
     pub llm: LlmConfig,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SlackConfig {
     pub client_id: String,
     pub client_secret: String,
     pub redirect_port: u16,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ZeroClawConfig {
     pub binary_path: String,
     pub gateway_port: u16,
     pub auto_start: bool,
     pub timeout_seconds: u64,
+    #[serde(default = "default_post_to_slack")]
+    pub post_to_slack: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct LlmConfig {
     pub provider: String,
     pub api_key: String,
+}
+
+fn default_post_to_slack() -> bool {
+    false
 }
 
 impl Default for Config {
@@ -39,9 +48,10 @@ impl Default for Config {
             },
             zeroclaw: ZeroClawConfig {
                 binary_path: "zeroclaw".to_string(),
-                gateway_port: 8080,
+                gateway_port: 58080,
                 auto_start: true,
                 timeout_seconds: 30,
+                post_to_slack: false,
             },
             llm: LlmConfig {
                 provider: "openrouter".to_string(),

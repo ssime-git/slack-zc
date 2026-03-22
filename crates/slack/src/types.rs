@@ -224,6 +224,8 @@ pub struct Workspace {
     #[serde(default)]
     pub user_id: Option<String>,
     pub active: bool,
+    #[serde(default)]
+    pub last_channel_id: Option<String>,
 }
 
 #[derive(Debug)]

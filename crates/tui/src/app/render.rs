@@ -74,7 +74,7 @@ impl App {
 
         let content = match state.current_screen {
             OnboardingScreen::Welcome => {
-                "\n\n  Welcome to slack-zc!\n\n  A terminal Slack client with ZeroClaw AI integration.\n\n  This wizard will help you set up:\n    1. Slack workspace connection\n    2. ZeroClaw agent pairing\n\n  Press [Enter] to continue, [Esc] to quit\n".to_owned()
+                "\n\n  Welcome to slack-zc!\n\n  A terminal Slack client with ZeroClaw AI integration.\n\n  This wizard will help you set up:\n    1. Slack workspace connection\n    2. ZeroClaw local gateway access\n\n  Press [Enter] to continue, [Esc] to quit\n".to_owned()
             }
             OnboardingScreen::SlackCredentials => {
                 let client_id_display = if state.selected_field == 0 {
@@ -114,12 +114,15 @@ impl App {
                 }
             }
             OnboardingScreen::ZeroClawCheck => {
-                "\n\n  ZeroClaw Agent Setup:\n\n  Checking for ZeroClaw binary...\n\n  If not found, install with:\n    curl -LsSf ... | sh\n\n  Press [Enter] to continue, [Esc] to go back\n".to_owned()
-            }
-            OnboardingScreen::ZeroClawPairing => {
                 format!(
-                    "\n\n  Pairing with ZeroClaw gateway:\n\n  Code: {}\n\n  Check the terminal where zeroclaw is running\n  for the 6-digit pairing code.\n\n  Press [Enter] to continue, [Esc] to go back\n",
-                    state.pairing_code.as_deref().unwrap_or("waiting...")
+                    "\n\n  ZeroClaw Agent Setup:\n\n  slack-zc talks to ZeroClaw through its local gateway API.\n\n  Prerequisites:\n    1. zeroclaw installed\n    2. `zeroclaw onboard` completed\n    3. `zeroclaw gateway --port {}` running\n\n  Press [Enter] to continue, [Esc] to go back\n",
+                    self.config.zeroclaw.gateway_port
+                )
+            }
+            OnboardingScreen::ZeroClawConnection => {
+                format!(
+                    "\n\n  ZeroClaw Connection:\n\n  slack-zc no longer pairs by parsing terminal output.\n\n  It will try to:\n    1. reuse a running ZeroClaw gateway\n    2. or start one with existing local credentials\n\n  If connection fails, run:\n    zeroclaw onboard\n    zeroclaw gateway --port {}\n\n  Press [Enter] to continue, [Esc] to go back\n",
+                    self.config.zeroclaw.gateway_port
                 )
             }
             OnboardingScreen::Complete => {
@@ -132,7 +135,7 @@ impl App {
             OnboardingScreen::SlackCredentials => "Slack Credentials",
             OnboardingScreen::OAuthFlow => "OAuth Flow",
             OnboardingScreen::ZeroClawCheck => "ZeroClaw Check",
-            OnboardingScreen::ZeroClawPairing => "ZeroClaw Pairing",
+            OnboardingScreen::ZeroClawConnection => "ZeroClaw Connection",
             OnboardingScreen::Complete => "Complete!",
         };
 
@@ -268,88 +271,218 @@ impl App {
 
         frame.render_widget(Paragraph::new(text).block(Block::default()), area);
     }
-
     fn render_sidebar(&mut self, frame: &mut Frame, area: Rect) {
         use ratatui::style::{Color, Modifier, Style};
         use ratatui::widgets::{Block, Borders, List, ListItem};
 
         let is_focused = self.focus == Focus::Sidebar;
 
-        // Visible rows inside the border (height minus 2 for borders, minus 1 for header).
-        let visible_rows = area.height.saturating_sub(3) as usize;
-
-        // Keep the cursor visible by adjusting sidebar_scroll.
-        if visible_rows > 0 {
-            if self.sidebar_cursor < self.sidebar_scroll {
-                self.sidebar_scroll = self.sidebar_cursor;
-            } else if self.sidebar_cursor >= self.sidebar_scroll + visible_rows {
-                self.sidebar_scroll = self.sidebar_cursor + 1 - visible_rows;
-            }
-        }
-
-        let mut items: Vec<ListItem> = vec![];
-
-        let channels_title = if self.search_query.is_empty() {
-            " CHANNELS ".to_string()
-        } else {
-            format!(" CHANNELS [{}] ", self.search_query)
-        };
-        items.push(
-            ListItem::new(channels_title).style(
-                Style::default().add_modifier(Modifier::BOLD),
-            ),
-        );
-
         // Filter channels by search query
         let filtered_channels: Vec<_> = if self.search_query.is_empty() {
             self.channels.clone()
         } else {
             let query = self.search_query.to_lowercase();
-            self.channels.iter()
-                .filter(|ch| ch.name.to_lowercase().contains(&query) || (ch.user.as_ref().map_or(false, |u| u.to_lowercase().contains(&query))))
+            self.channels
+                .iter()
+                .filter(|ch| {
+                    ch.name.to_lowercase().contains(&query)
+                        || (ch
+                            .user
+                            .as_ref()
+                            .is_some_and(|u| u.to_lowercase().contains(&query)))
+                })
                 .cloned()
                 .collect()
         };
 
-        // Adjust sidebar_cursor if out of bounds
+        // Ensure sidebar_cursor stays in bounds
         if self.sidebar_cursor >= filtered_channels.len() && !filtered_channels.is_empty() {
             self.sidebar_cursor = filtered_channels.len() - 1;
-        } else if filtered_channels.is_empty() {
-            self.sidebar_cursor = 0;
         }
 
-        let end = (self.sidebar_scroll + visible_rows).min(filtered_channels.len());
-        for i in self.sidebar_scroll..end {
-            let channel = &filtered_channels[i];
-            let is_selected = Some(i) == self.selected_channel;
-            let is_cursor = i == self.sidebar_cursor && is_focused;
+        // Separate for display but keep global indices
+        let regular_channels: Vec<(usize, &Channel)> = filtered_channels
+            .iter()
+            .enumerate()
+            .filter(|(_, ch)| !ch.is_dm)
+            .collect();
+        let dm_channels: Vec<(usize, &Channel)> = filtered_channels
+            .iter()
+            .enumerate()
+            .filter(|(_, ch)| ch.is_dm)
+            .collect();
 
-            let prefix = if is_cursor && is_selected {
-                ">> "
-            } else if is_cursor {
-                " > "
-            } else if is_selected {
-                " # "
-            } else {
-                "   "
-            };
+        // Build display items with proper index mapping
+        let mut items: Vec<ListItem> = vec![];
+        let search_indicator = if self.search_query.is_empty() {
+            String::new()
+        } else {
+            format!(" [filter: {}]", self.search_query)
+        };
 
-            let name = channel.display_name();
-            let unread = if channel.unread_count > 0 {
-                format!(" {}", channel.unread_count)
-            } else {
-                String::new()
-            };
-
-            let style = if is_cursor {
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
-            } else if is_selected {
-                Style::default().fg(Color::Cyan)
-            } else {
+        // Channels Section Header
+        items.push(
+            ListItem::new(format!(
+                "─ CHANNELS (#{}) {}",
+                regular_channels.len(),
+                search_indicator
+            ))
+            .style(
                 Style::default()
-            };
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            ),
+        );
 
-            items.push(ListItem::new(format!("{}{}{}", prefix, name, unread)).style(style));
+        if let Some(ref error) = self.last_error {
+            // Show error in sidebar if loading failed
+            items.push(ListItem::new("  ⚠ Error loading").style(Style::default().fg(Color::Red)));
+            let error_short = if error.len() > 30 {
+                &error[..30]
+            } else {
+                error
+            };
+            items.push(
+                ListItem::new(format!("  {}", error_short)).style(Style::default().fg(Color::Red)),
+            );
+        } else if !self.workspaces.is_empty() && self.channels.is_empty() {
+            items.push(
+                ListItem::new("  (loading channels...)")
+                    .style(Style::default().fg(Color::DarkGray)),
+            );
+        } else if regular_channels.is_empty() {
+            items
+                .push(ListItem::new("  (no channels)").style(Style::default().fg(Color::DarkGray)));
+        } else {
+            for (global_idx, channel) in regular_channels {
+                let is_selected = Some(global_idx) == self.selected_channel;
+                let is_cursor = global_idx == self.sidebar_cursor && is_focused;
+
+                let prefix = if is_cursor && is_selected {
+                    ">> "
+                } else if is_cursor {
+                    " > "
+                } else if is_selected {
+                    " # "
+                } else {
+                    "   "
+                };
+
+                let name = format!("# {}", channel.name);
+                let unread = if channel.unread_count > 0 {
+                    format!(" {}", channel.unread_count)
+                } else {
+                    String::new()
+                };
+
+                let style = if is_cursor {
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD)
+                } else if is_selected {
+                    Style::default().fg(Color::Cyan)
+                } else {
+                    Style::default()
+                };
+
+                items.push(ListItem::new(format!("{}{}{}", prefix, name, unread)).style(style));
+            }
+        }
+
+        // DMs Section Header
+        items.push(ListItem::new(""));
+        items.push(
+            ListItem::new(format!(
+                "─ DIRECT MESSAGES (@{}) {}",
+                dm_channels.len(),
+                search_indicator
+            ))
+            .style(
+                Style::default()
+                    .fg(Color::Magenta)
+                    .add_modifier(Modifier::BOLD),
+            ),
+        );
+
+        if !self.workspaces.is_empty() && self.channels.is_empty() && self.last_error.is_none() {
+            items.push(
+                ListItem::new("  (loading DMs...)").style(Style::default().fg(Color::DarkGray)),
+            );
+        } else if dm_channels.is_empty() {
+            items.push(ListItem::new("  (no DMs)").style(Style::default().fg(Color::DarkGray)));
+        } else {
+            for (global_idx, channel) in dm_channels {
+                let is_selected = Some(global_idx) == self.selected_channel;
+                let is_cursor = global_idx == self.sidebar_cursor && is_focused;
+
+                let prefix = if is_cursor && is_selected {
+                    ">> "
+                } else if is_cursor {
+                    " > "
+                } else if is_selected {
+                    " @ "
+                } else {
+                    "   "
+                };
+
+                let name = format!("@ {}", channel.name);
+                let unread = if channel.unread_count > 0 {
+                    format!(" {}", channel.unread_count)
+                } else {
+                    String::new()
+                };
+
+                let style = if is_cursor {
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD)
+                } else if is_selected {
+                    Style::default().fg(Color::Magenta)
+                } else {
+                    Style::default()
+                };
+
+                items.push(ListItem::new(format!("{}{}{}", prefix, name, unread)).style(style));
+            }
+        }
+
+        // Calculate scroll to keep cursor visible
+        let visible_rows = area.height.saturating_sub(3) as usize;
+        let cursor_visual_pos = if filtered_channels.is_empty() {
+            0
+        } else {
+            // Find visual position of cursor in the rendered list
+            let mut pos = 1; // Start after first header
+            for (idx, ch) in filtered_channels.iter().enumerate() {
+                if idx == self.sidebar_cursor {
+                    break;
+                }
+                if !ch.is_dm {
+                    pos += 1;
+                }
+            }
+            // Add DM section offset if cursor is in DM section
+            if self.sidebar_cursor < filtered_channels.len() {
+                let cursor_ch = &filtered_channels[self.sidebar_cursor];
+                if cursor_ch.is_dm {
+                    pos += 2; // Empty line + DM header
+                              // Count regular channels before this DM
+                    for ch in filtered_channels.iter().take(self.sidebar_cursor) {
+                        if ch.is_dm {
+                            pos += 1;
+                        }
+                    }
+                }
+            }
+            pos
+        };
+
+        if visible_rows > 0 {
+            if cursor_visual_pos < self.sidebar_scroll {
+                self.sidebar_scroll = cursor_visual_pos.saturating_sub(1);
+            } else if cursor_visual_pos >= self.sidebar_scroll + visible_rows {
+                self.sidebar_scroll = cursor_visual_pos + 2 - visible_rows;
+            }
         }
 
         let border_style = if is_focused {
@@ -362,7 +495,7 @@ impl App {
             List::new(items).block(
                 Block::default()
                     .borders(Borders::ALL)
-                    .title(" Channels ")
+                    .title(format!(" {} total ", filtered_channels.len()))
                     .border_style(border_style),
             ),
             area,
@@ -370,116 +503,168 @@ impl App {
     }
 
     fn render_messages(&self, frame: &mut Frame, area: Rect) {
-        use ratatui::style::{Color, Style};
-        use ratatui::widgets::{Block, Borders, Paragraph};
+        use ratatui::style::{Color, Modifier, Style};
+        use ratatui::text::{Line, Span};
+        use ratatui::widgets::{Block, Borders, List, ListItem, ListState};
 
-        let content = if let Some(ref channel) = self.selected_channel {
-            self.channels.get(*channel).and_then(|ch| {
-                self.messages.get(&ch.id).map(|msgs| {
-                    let mut lines: Vec<String> = Vec::new();
+        let is_messages_focused = self.focus == Focus::Messages;
 
-                    for m in msgs.iter() {
-                        if let Some(ref user_id) = self.message_filter.user_id {
-                            if &m.user_id != user_id {
+        let items: Vec<ListItem> = if let Some(ref channel) = self.selected_channel {
+            self.channels
+                .get(*channel)
+                .and_then(|ch| {
+                    self.messages.get(&ch.id).map(|msgs| {
+                        let mut list_items = Vec::new();
+
+                        for m in msgs.iter() {
+                            if let Some(ref user_id) = self.message_filter.user_id {
+                                if &m.user_id != user_id {
+                                    continue;
+                                }
+                            }
+
+                            if m.is_deleted {
+                                list_items.push(ListItem::new(vec![Line::from(vec![
+                                    Span::raw(format!("{} ", m.timestamp.format("%H:%M"))),
+                                    Span::raw("[message deleted]"),
+                                ])]));
                                 continue;
                             }
-                        }
 
-                        if m.is_deleted {
-                            lines
-                                .push(format!("{} [message deleted]", m.timestamp.format("%H:%M")));
-                            continue;
-                        }
+                            let thread_indicator = if m.thread_ts.is_some() {
+                                "  ↳ "
+                            } else if m.reply_count.is_some_and(|c| c > 0) {
+                                "  ⇩ "
+                            } else {
+                                ""
+                            };
 
-                        let thread_indicator = if m.thread_ts.is_some() {
-                            "  ↳ "
-                        } else if m.reply_count.is_some_and(|c| c > 0) {
-                            "  ⇩ "
-                        } else {
-                            ""
-                        };
+                            let edited_indicator = if m.is_edited { " (edited)" } else { "" };
 
-                        let edited_indicator = if m.is_edited { " (edited)" } else { "" };
+                            let mut line_spans = vec![
+                                Span::styled(
+                                    format!(
+                                        "{}{} {}{}: ",
+                                        thread_indicator,
+                                        m.timestamp.format("%H:%M"),
+                                        m.username,
+                                        edited_indicator
+                                    ),
+                                    Style::default().fg(Color::Gray),
+                                ),
+                                Span::raw(m.text.clone()),
+                            ];
 
-                        let mut line = format!(
-                            "{}{} {}{}: {}",
-                            thread_indicator,
-                            m.timestamp.format("%H:%M"),
-                            m.username,
-                            edited_indicator,
-                            m.text
-                        );
-
-                        if !m.reactions.is_empty() {
-                            let reactions_str: Vec<String> = m
-                                .reactions
-                                .iter()
-                                .map(|r| format!("{}:{}", r.name, r.count))
-                                .collect();
-                            line.push_str(&format!(" [{}]", reactions_str.join(" ")));
-                        }
-
-                        if let Some(reply_count) = m.reply_count {
-                            if reply_count > 0 {
-                                line.push_str(&format!(" (+{} replies)", reply_count));
+                            if !m.reactions.is_empty() {
+                                let reactions_str: Vec<String> = m
+                                    .reactions
+                                    .iter()
+                                    .map(|r| format!("{}:{}", r.name, r.count))
+                                    .collect();
+                                line_spans.push(Span::styled(
+                                    format!(" [{}]", reactions_str.join(" ")),
+                                    Style::default().fg(Color::Cyan),
+                                ));
                             }
-                        }
 
-                        lines.push(line);
+                            if let Some(reply_count) = m.reply_count {
+                                if reply_count > 0 {
+                                    line_spans.push(Span::styled(
+                                        format!(" (+{} replies)", reply_count),
+                                        Style::default().fg(Color::Magenta),
+                                    ));
+                                }
+                            }
 
-                        if self.message_filter.show_threads {
-                            if let Some(thread_key) = m.thread_ts.clone().or(Some(m.ts.clone())) {
-                                if let Some(threads) = self.threads.get(&ch.id) {
-                                    if let Some(thread) =
-                                        threads.iter().find(|t| t.parent_ts == thread_key)
-                                    {
-                                        if !thread.is_collapsed {
-                                            for reply in &thread.replies {
-                                                let reply_line = format!(
-                                                    "    ↳ {} {}: {}",
-                                                    reply.timestamp.format("%H:%M"),
-                                                    reply.username,
-                                                    reply.text
-                                                );
-                                                lines.push(reply_line);
+                            let mut lines = vec![Line::from(line_spans)];
+
+                            if self.message_filter.show_threads {
+                                if let Some(thread_key) = m.thread_ts.clone().or(Some(m.ts.clone()))
+                                {
+                                    if let Some(threads) = self.threads.get(&ch.id) {
+                                        if let Some(thread) =
+                                            threads.iter().find(|t| t.parent_ts == thread_key)
+                                        {
+                                            if !thread.is_collapsed {
+                                                for reply in &thread.replies {
+                                                    lines.push(Line::from(vec![
+                                                        Span::styled(
+                                                            format!(
+                                                                "    ↳ {} {}: ",
+                                                                reply.timestamp.format("%H:%M"),
+                                                                reply.username
+                                                            ),
+                                                            Style::default().fg(Color::DarkGray),
+                                                        ),
+                                                        Span::styled(
+                                                            reply.text.clone(),
+                                                            Style::default().fg(Color::DarkGray),
+                                                        ),
+                                                    ]));
+                                                }
+                                            } else {
+                                                lines.push(Line::from(vec![Span::styled(
+                                                    format!(
+                                                        "    [{} replies - press T to expand]",
+                                                        thread.replies.len()
+                                                    ),
+                                                    Style::default().fg(Color::DarkGray),
+                                                )]));
                                             }
-                                        } else {
-                                            lines.push(format!(
-                                                "    [{} replies - press t to expand]",
-                                                thread.replies.len()
-                                            ));
                                         }
                                     }
                                 }
                             }
-                        }
-                    }
 
-                    lines.join("\n")
+                            // We add a bit of vertical spacing between messages
+                            lines.push(Line::from(""));
+                            list_items.push(ListItem::new(lines));
+                        }
+
+                        list_items
+                    })
                 })
-            })
+                .unwrap_or_else(Vec::new)
         } else {
-            None
+            vec![ListItem::new(Line::from(
+                "Select a channel to view messages",
+            ))]
         };
 
-        let text = content.unwrap_or_else(|| "Select a channel to view messages".to_string());
-
-        let border_style = if self.focus == Focus::Messages {
+        let border_style = if is_messages_focused {
             Style::default().fg(Color::Yellow)
         } else {
             Style::default()
         };
 
-        frame.render_widget(
-            Paragraph::new(text)
-                .block(
-                    Block::default()
-                        .borders(Borders::ALL)
-                        .border_style(border_style),
-                )
-                .scroll((self.scroll_offset as u16, 0)),
-            area,
-        );
+        let mut list_state = ListState::default();
+
+        if items.len() > 0 {
+            // scroll_offset represents how many items from the bottom we are.
+            // 0 means bottom-most message is selected.
+            let selected_idx = items.len().saturating_sub(1 + self.scroll_offset);
+            list_state.select(Some(selected_idx));
+        }
+
+        let highlight_style = if is_messages_focused {
+            Style::default()
+                .add_modifier(Modifier::BOLD)
+                .bg(Color::Rgb(40, 40, 40))
+        } else {
+            Style::default().bg(Color::Rgb(30, 30, 30))
+        };
+
+        let list = List::new(items)
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_style(border_style)
+                    .title(" Messages "),
+            )
+            .highlight_style(highlight_style)
+            .highlight_symbol(if is_messages_focused { "▶ " } else { "  " });
+
+        frame.render_stateful_widget(list, area, &mut list_state);
     }
 
     fn render_agent_panel(&self, frame: &mut Frame, area: Rect) {
@@ -518,6 +703,24 @@ impl App {
         text.push_str("  /résume [#channel]\n");
         text.push_str("  /draft [intent]\n");
         text.push_str("  /cherche [text]\n\n");
+        text.push_str(&format!(
+            "Post to Slack: {}\n\n",
+            if self.config.zeroclaw.post_to_slack {
+                "enabled"
+            } else {
+                "dry-run"
+            }
+        ));
+
+        if let AgentStatus::Error(_) = self.agent_status {
+            if let Some(error) = self.last_error.as_deref() {
+                let content_width = area.width.saturating_sub(4) as usize;
+                let wrapped = Self::wrap_and_truncate_text(error, content_width, 6);
+                text.push_str("Last error:\n");
+                text.push_str(&wrapped);
+                text.push_str("\n\n");
+            }
+        }
 
         if !self.agent_responses.is_empty() {
             text.push_str("── Recent ──\n");
@@ -542,7 +745,12 @@ impl App {
         );
     }
 
-    fn render_confirmation_dialog(&self, frame: &mut Frame, area: Rect, dialog: &ConfirmationDialog) {
+    fn render_confirmation_dialog(
+        &self,
+        frame: &mut Frame,
+        area: Rect,
+        dialog: &ConfirmationDialog,
+    ) {
         use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 
         frame.render_widget(Clear, area);
@@ -554,7 +762,11 @@ impl App {
         );
 
         frame.render_widget(
-            Paragraph::new(content).block(Block::default().borders(Borders::ALL).title(" Confirm Command ")),
+            Paragraph::new(content).block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title(" Confirm Command "),
+            ),
             area,
         );
     }
@@ -587,7 +799,9 @@ impl App {
 
         let mut list_state = ListState::default();
         if !items.is_empty() {
-            list_state.select(Some(picker.selected_index.min(items.len().saturating_sub(1))));
+            list_state.select(Some(
+                picker.selected_index.min(items.len().saturating_sub(1)),
+            ));
         }
 
         let list = List::new(items)
@@ -605,10 +819,18 @@ impl App {
         use ratatui::style::{Color, Style};
         use ratatui::widgets::{Block, Borders, Paragraph};
 
-        let mode_indicator = match self.input.mode {
-            InputMode::Normal => "[💬]",
-            InputMode::AgentCommand => "[⚡]",
-            InputMode::AgentMention => "[🤖]",
+        let in_thread = self
+            .get_active_channel_id()
+            .map_or(false, |ch| self.active_threads.contains_key(&ch));
+
+        let mode_indicator = if in_thread {
+            "[↩]"
+        } else {
+            match self.input.mode {
+                InputMode::Normal => "[💬]",
+                InputMode::AgentCommand => "[⚡]",
+                InputMode::AgentMention => "[🤖]",
+            }
         };
 
         let text = format!("{} > {}", mode_indicator, self.input.buffer);

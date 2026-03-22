@@ -4,6 +4,11 @@ use std::time::Instant;
 impl App {
     pub(super) fn switch_workspace(&mut self, idx: usize) {
         if idx < self.workspaces.len() {
+            tracing::info!(
+                "Switching workspace to {} ({})",
+                idx,
+                self.workspaces[idx].workspace.team_name
+            );
             self.active_workspace = idx;
             self.channels = self.workspaces[idx].channels.clone();
             self.selected_channel = None;
@@ -27,9 +32,27 @@ impl App {
         self.scroll_offset = 0;
 
         if let Some(channel) = self.channels.get(idx) {
+            tracing::info!("Selecting channel {} ({})", channel.name, channel.id);
+            let channel_id = channel.id.clone();
+
+            if let Some(ref mut session) = self.session {
+                if let Some(ws) = self.workspaces.get_mut(self.active_workspace) {
+                    ws.workspace.last_channel_id = Some(channel_id.clone());
+                    if let Some(active_ws) = session
+                        .workspaces
+                        .iter_mut()
+                        .find(|w| w.team_id == ws.workspace.team_id)
+                    {
+                        active_ws.last_channel_id = Some(channel_id.clone());
+                    }
+                    if let Err(e) = session.save() {
+                        tracing::error!("Failed to save last channel: {}", e);
+                    }
+                }
+            }
+
             let ws = self.workspaces.get(self.active_workspace);
             if let Some(ws) = ws {
-                let channel_id = channel.id.clone();
                 let token = ws.workspace.xoxp_token.clone();
                 let api = self.slack_api.clone();
                 self.spawn_app_task(async move {
@@ -61,15 +84,22 @@ impl App {
                 if let Some(channel) = self.get_active_channel_id() {
                     if let Some(ws) = self.workspaces.get(self.active_workspace) {
                         let token = ws.workspace.xoxp_token.clone();
+                        let thread_ts = self.active_threads.get(&channel).cloned();
                         let context = "Failed to send message".to_string();
                         let api = self.slack_api.clone();
+                        let channel_id_for_event = channel.clone();
                         self.spawn_app_task(async move {
-                            let error = api
-                                .send_message(&token, &channel, &text)
-                                .await
-                                .err()
-                                .map(|e| App::actionable_error(&e));
-                            AppAsyncEvent::SlackSendResult { context, error }
+                            let result = if let Some(ts) = thread_ts {
+                                api.send_message_to_thread(&token, &channel, &text, &ts)
+                                    .await
+                            } else {
+                                api.send_message(&token, &channel, &text).await
+                            };
+                            AppAsyncEvent::SlackSendResult {
+                                context,
+                                channel_id: Some(channel_id_for_event),
+                                error: result.err().map(|e| App::actionable_error(&e)),
+                            }
                         });
                     }
                 }
@@ -81,15 +111,22 @@ impl App {
                 if let Some(channel) = self.get_active_channel_id() {
                     if let Some(ws) = self.workspaces.get(self.active_workspace) {
                         let token = ws.workspace.xoxp_token.clone();
+                        let thread_ts = self.active_threads.get(&channel).cloned();
                         let context = "Failed to send mention".to_string();
                         let api = self.slack_api.clone();
+                        let channel_id_for_event = channel.clone();
                         self.spawn_app_task(async move {
-                            let error = api
-                                .send_message(&token, &channel, &text)
-                                .await
-                                .err()
-                                .map(|e| App::actionable_error(&e));
-                            AppAsyncEvent::SlackSendResult { context, error }
+                            let result = if let Some(ts) = thread_ts {
+                                api.send_message_to_thread(&token, &channel, &text, &ts)
+                                    .await
+                            } else {
+                                api.send_message(&token, &channel, &text).await
+                            };
+                            AppAsyncEvent::SlackSendResult {
+                                context,
+                                channel_id: Some(channel_id_for_event),
+                                error: result.err().map(|e| App::actionable_error(&e)),
+                            }
                         });
                     }
                 }
@@ -169,7 +206,9 @@ impl App {
         }
 
         let replacement = format!("#{} ", channel_name);
-        let replace_end = trigger_position.saturating_add(1).min(self.input.buffer.len());
+        let replace_end = trigger_position
+            .saturating_add(1)
+            .min(self.input.buffer.len());
         self.input
             .buffer
             .replace_range(trigger_position..replace_end, &replacement);
@@ -202,12 +241,31 @@ impl App {
 
         let command = CommandType::from_command(&cmd_name, &args);
         let channel_id = self.get_active_channel_id().unwrap_or_default();
+        let channel_name = self
+            .selected_channel
+            .and_then(|idx| self.channels.get(idx).map(|ch| ch.name.clone()))
+            .unwrap_or_else(|| channel_id.clone());
         let user_id = self
             .workspaces
             .get(self.active_workspace)
             .and_then(|ws| ws.workspace.user_id.clone())
             .unwrap_or_else(|| "UNKNOWN_USER".to_string());
-        let payload = command.to_webhook_payload(&channel_id, &user_id);
+        let (history_messages, history_chars, timeout_secs) = match command {
+            CommandType::Resume { .. } => (12, 220, self.config.zeroclaw.timeout_seconds.max(60)),
+            CommandType::Search { .. } => (12, 260, self.config.zeroclaw.timeout_seconds.max(45)),
+            _ => (16, 280, self.config.zeroclaw.timeout_seconds),
+        };
+        let history_context =
+            self.build_agent_history_context(&channel_id, history_messages, history_chars);
+        let payload = serde_json::json!({
+            "message": command.to_agent_prompt(&channel_name, &history_context, &user_id)
+        });
+        tracing::info!(
+            "Dispatching agent command {} for channel {} ({})",
+            cmd_name,
+            channel_name,
+            channel_id
+        );
 
         if let Some(ref mut runner) = self.agent_runner {
             if let Some(gateway) = runner.get_gateway().cloned() {
@@ -216,6 +274,7 @@ impl App {
                 self.loading_start_time = Some(Instant::now());
                 self.loading_command = Some(command_text.clone());
                 let channel = self.get_active_channel_id();
+                let post_to_slack = self.config.zeroclaw.post_to_slack;
                 let token = self
                     .workspaces
                     .get(self.active_workspace)
@@ -224,57 +283,74 @@ impl App {
                     .as_ref()
                     .and_then(|ch| self.active_threads.get(ch).cloned());
                 let api = self.slack_api.clone();
-                let timeout_secs = self.config.zeroclaw.timeout_seconds;
                 self.spawn_app_task(async move {
-                    let response =
-                        match timeout(
-                            Duration::from_secs(timeout_secs),
-                            gateway.send_to_agent(&payload),
-                        )
-                        .await
-                        {
-                            Ok(Ok(text)) => text,
-                            Ok(Err(e)) => {
-                                return AppAsyncEvent::AgentCommandFinished {
-                                    command: command_text,
-                                    response: None,
-                                    error: Some(format!(
-                                        "Agent command failed after {}s: {}\n\nPress R to retry",
-                                        timeout_secs, e
-                                    )),
-                                }
-                            }
-                            Err(_) => {
-                                return AppAsyncEvent::AgentCommandFinished {
-                                    command: command_text,
-                                    response: None,
-                                    error: Some(format!(
-                                        "Agent command timed out after {}s.\n\n\
-                                         What was tried: Gateway webhook call to agent\n\
-                                         Suggestions: Check agent status, try again\n\n\
-                                         Press R to retry",
-                                        timeout_secs
-                                    )),
-                                }
-                            }
-                        };
-
-                    if let (Some(channel_id), Some(xoxp_token)) = (channel, token) {
-                        let post_result = if let Some(ts) = thread_ts {
-                            api.send_message_to_thread(&xoxp_token, &channel_id, &response, &ts)
-                                .await
-                        } else {
-                            api.send_message(&xoxp_token, &channel_id, &response).await
-                        };
-                        if let Err(e) = post_result {
+                    let response = match timeout(
+                        Duration::from_secs(timeout_secs),
+                        gateway.send_to_agent(&payload),
+                    )
+                    .await
+                    {
+                        Ok(Ok(text)) => text,
+                        Ok(Err(e)) => {
                             return AppAsyncEvent::AgentCommandFinished {
                                 command: command_text,
                                 response: None,
-                                error: Some(format!("Failed to post agent response: {}", App::actionable_error(&e))),
-                            };
+                                error: Some(format!(
+                                    "Agent command failed after {}s: {}\n\nPress R to retry",
+                                    timeout_secs, e
+                                )),
+                            }
                         }
+                        Err(_) => {
+                            return AppAsyncEvent::AgentCommandFinished {
+                                command: command_text,
+                                response: None,
+                                error: Some(format!(
+                                    "Agent command timed out after {}s.\n\n\
+                                         What was tried: Gateway webhook call to agent\n\
+                                         Suggestions: Check agent status, try again\n\n\
+                                         Press R to retry",
+                                    timeout_secs
+                                )),
+                            }
+                        }
+                    };
+
+                    if post_to_slack {
+                        if let (Some(channel_id), Some(xoxp_token)) = (channel, token) {
+                            let post_result = if let Some(ts) = thread_ts {
+                                api.send_message_to_thread(&xoxp_token, &channel_id, &response, &ts)
+                                    .await
+                            } else {
+                                api.send_message(&xoxp_token, &channel_id, &response).await
+                            };
+                            if let Err(e) = post_result {
+                                tracing::warn!(
+                                    "Failed to post agent response to Slack channel {}: {}",
+                                    channel_id,
+                                    e
+                                );
+                                return AppAsyncEvent::AgentCommandFinished {
+                                    command: command_text,
+                                    response: None,
+                                    error: Some(format!(
+                                        "Failed to post agent response: {}",
+                                        App::actionable_error(&e)
+                                    )),
+                                };
+                            }
+                            tracing::info!(
+                                "Posted agent response to Slack channel {} after command",
+                                channel_id
+                            );
+                        }
+                    } else {
+                        tracing::info!(
+                            "Dry-run enabled; agent response kept local and not posted to Slack"
+                        );
                     }
 
+                    tracing::info!("Agent command completed successfully");
                     AppAsyncEvent::AgentCommandFinished {
                         command: command_text,
                         response: Some(response),
@@ -287,6 +363,42 @@ impl App {
         }
 
         Ok(())
+    }
+
+    fn build_agent_history_context(
+        &self,
+        channel_id: &str,
+        max_messages: usize,
+        max_chars: usize,
+    ) -> String {
+        let Some(messages) = self.messages.get(channel_id) else {
+            return "No recent Slack messages are loaded for this channel yet.".to_string();
+        };
+
+        let mut lines = Vec::new();
+        for message in messages.iter().rev().take(max_messages).rev() {
+            let mut text = message.text.trim().replace('\n', " ");
+            if text.len() > max_chars {
+                text.truncate(max_chars);
+                text.push_str("...");
+            }
+            if text.is_empty() {
+                continue;
+            }
+
+            lines.push(format!(
+                "[{}] {}: {}",
+                message.timestamp.format("%Y-%m-%d %H:%M"),
+                message.username,
+                text
+            ));
+        }
+
+        if lines.is_empty() {
+            "No recent Slack messages are loaded for this channel yet.".to_string()
+        } else {
+            lines.join("\n")
+        }
     }
     pub(super) fn get_active_channel_id(&self) -> Option<String> {
         self.selected_channel
@@ -349,6 +461,7 @@ impl App {
                                         .map(|e| App::actionable_error(&e));
                                     AppAsyncEvent::SlackSendResult {
                                         context: "Failed to delete message".to_string(),
+                                        channel_id: None,
                                         error,
                                     }
                                 });
@@ -510,6 +623,7 @@ impl App {
                         .map(|e| App::actionable_error(&e));
                     AppAsyncEvent::SlackSendResult {
                         context: "Failed to update message".to_string(),
+                        channel_id: None,
                         error,
                     }
                 });
@@ -539,6 +653,7 @@ impl App {
                                     .map(|e| App::actionable_error(&e));
                                 AppAsyncEvent::SlackSendResult {
                                     context: "Failed to add reaction".to_string(),
+                                    channel_id: None,
                                     error,
                                 }
                             });

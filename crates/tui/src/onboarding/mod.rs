@@ -4,7 +4,7 @@ pub enum OnboardingScreen {
     SlackCredentials,
     OAuthFlow,
     ZeroClawCheck,
-    ZeroClawPairing,
+    ZeroClawConnection,
     Complete,
 }
 
@@ -15,7 +15,6 @@ pub struct OnboardingState {
     pub selected_field: usize,
     pub oauth_url: Option<String>,
     pub oauth_code: String,
-    pub pairing_code: Option<String>,
     pub error_message: Option<String>,
 }
 
@@ -34,7 +33,6 @@ impl OnboardingState {
             selected_field: 0,
             oauth_url: None,
             oauth_code: String::new(),
-            pairing_code: None,
             error_message: None,
         }
     }
@@ -65,8 +63,8 @@ impl OnboardingState {
             OnboardingScreen::Welcome => OnboardingScreen::SlackCredentials,
             OnboardingScreen::SlackCredentials => OnboardingScreen::OAuthFlow,
             OnboardingScreen::OAuthFlow => OnboardingScreen::ZeroClawCheck,
-            OnboardingScreen::ZeroClawCheck => OnboardingScreen::ZeroClawPairing,
-            OnboardingScreen::ZeroClawPairing => OnboardingScreen::Complete,
+            OnboardingScreen::ZeroClawCheck => OnboardingScreen::ZeroClawConnection,
+            OnboardingScreen::ZeroClawConnection => OnboardingScreen::Complete,
             OnboardingScreen::Complete => OnboardingScreen::Complete,
         };
     }
@@ -77,8 +75,8 @@ impl OnboardingState {
             OnboardingScreen::SlackCredentials => OnboardingScreen::Welcome,
             OnboardingScreen::OAuthFlow => OnboardingScreen::SlackCredentials,
             OnboardingScreen::ZeroClawCheck => OnboardingScreen::OAuthFlow,
-            OnboardingScreen::ZeroClawPairing => OnboardingScreen::ZeroClawCheck,
-            OnboardingScreen::Complete => OnboardingScreen::ZeroClawPairing,
+            OnboardingScreen::ZeroClawConnection => OnboardingScreen::ZeroClawCheck,
+            OnboardingScreen::Complete => OnboardingScreen::ZeroClawConnection,
         };
     }
 }

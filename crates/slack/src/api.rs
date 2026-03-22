@@ -1,12 +1,12 @@
 use crate::types::{Channel, FileInfo, Message, User};
 use anyhow::{anyhow, Result};
+use rand::Rng;
 use reqwest::Client;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
-use rand::Rng;
 
 const SLACK_API_BASE: &str = "https://slack.com/api";
 const USER_CACHE_TTL: Duration = Duration::from_secs(600);
@@ -35,7 +35,8 @@ mod tests {
                     Ok("success")
                 }
             }
-        }).await;
+        })
+        .await;
 
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "success");
@@ -52,7 +53,8 @@ mod tests {
                 attempt_count.fetch_add(1, Ordering::SeqCst);
                 Err(anyhow!("429 retry_after:0"))
             }
-        }).await;
+        })
+        .await;
 
         assert!(result.is_err());
     }
@@ -68,7 +70,8 @@ mod tests {
                 attempt_count.fetch_add(1, Ordering::SeqCst);
                 Err(anyhow!("some other error"))
             }
-        }).await;
+        })
+        .await;
 
         assert!(result.is_err());
     }
@@ -101,24 +104,28 @@ mod tests {
                     Ok("success")
                 }
             }
-        }).await;
+        })
+        .await;
 
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_parse_retry_after_extracts_seconds() {
-        assert_eq!(parse_retry_after("rate_limited retry_after:30 more"), Some(30));
+        assert_eq!(
+            parse_retry_after("rate_limited retry_after:30 more"),
+            Some(30)
+        );
         assert_eq!(parse_retry_after("no header here"), None);
     }
 
     #[tokio::test]
     async fn test_user_cache_returns_cached_users() {
         let api = SlackApi::new();
-        
+
         let users1 = api.get_users_cached("fake_token").await;
         let users2 = api.get_users_cached("fake_token").await;
-        
+
         assert_eq!(users1.len(), users2.len());
     }
 }
@@ -179,8 +186,11 @@ fn is_transient_network_error(error: &anyhow::Error) -> bool {
         return req_err.is_connect() || req_err.is_timeout() || req_err.is_request();
     }
     let msg = error.to_string().to_lowercase();
-    msg.contains("connection") || msg.contains("timeout") || msg.contains("timed out")
-        || msg.contains("reset") || msg.contains("eof")
+    msg.contains("connection")
+        || msg.contains("timeout")
+        || msg.contains("timed out")
+        || msg.contains("reset")
+        || msg.contains("eof")
 }
 
 async fn with_retry<T, F, Fut>(mut operation: F) -> Result<T>
@@ -295,32 +305,47 @@ impl SlackApi {
         }
     }
 
-    pub async fn list_channels(&self, token: &str) -> Result<Vec<Channel>> {
-        let mut all_channels = Vec::new();
-        let mut cursor: Option<String> = None;
-        let limit = 200; // Max limit per page
-
-        loop {
+    pub async fn list_channels_page(
+        &self,
+        token: &str,
+        cursor: Option<&str>,
+    ) -> Result<(Vec<Channel>, Option<String>)> {
+        with_retry(|| async {
             let mut req = self
                 .client
                 .get(format!("{}/conversations.list", SLACK_API_BASE))
                 .header("Authorization", format!("Bearer {}", token))
                 .query(&[("types", "public_channel,private_channel")])
                 .query(&[("exclude_archived", "true")])
-                .query(&[("limit", limit.to_string().as_str())]);
+                .query(&[("limit", "200")]);
 
-            if let Some(ref c) = cursor {
-                req = req.query(&[("cursor", c.as_str())]);
+            if let Some(c) = cursor {
+                req = req.query(&[("cursor", c)]);
             }
 
             let response = req.send().await?;
-            let data: Value = response.json().await?;
+            let status = response.status();
 
+            if status == 429 {
+                let retry_after = response
+                    .headers()
+                    .get("retry-after")
+                    .and_then(|h| h.to_str().ok())
+                    .and_then(|s| s.parse::<u64>().ok())
+                    .unwrap_or(2);
+                return Err(anyhow!("429 retry_after:{retry_after}"));
+            }
+
+            let data: Value = response.json().await?;
             if !data.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
-                return Err(anyhow!(
-                    "Failed to list channels: {:?}",
-                    data.get("error").and_then(|v| v.as_str())
-                ));
+                let err = data
+                    .get("error")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("unknown");
+                if err == "rate_limited" {
+                    return Err(anyhow!("429 retry_after:2"));
+                }
+                return Err(anyhow!("Failed to list channels: {err}"));
             }
 
             let empty: Vec<serde_json::Value> = Vec::new();
@@ -329,22 +354,183 @@ impl SlackApi {
                 .and_then(|v| v.as_array())
                 .unwrap_or(&empty);
 
+            let mut page_channels = Vec::new();
             for c in channels.iter() {
-                if let Some(channel) = self.parse_channel(c, false) {
-                    all_channels.push(channel);
+                let is_archived = c
+                    .get("is_archived")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
+                if is_archived {
+                    continue;
                 }
+                let id = c.get("id").and_then(|v| v.as_str()).unwrap_or("unknown_id");
+                let name = c.get("name").and_then(|v| v.as_str()).unwrap_or_else(|| {
+                    c.get("id")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("unknown_name")
+                });
+                page_channels.push(Channel {
+                    id: id.to_string(),
+                    name: name.to_string(),
+                    is_dm: false,
+                    is_group: c.get("is_group").and_then(|v| v.as_bool()).unwrap_or(false),
+                    is_im: c.get("is_im").and_then(|v| v.as_bool()).unwrap_or(false),
+                    unread_count: 0,
+                    purpose: c
+                        .get("purpose")
+                        .and_then(|p| p.get("value"))
+                        .and_then(|v| v.as_str())
+                        .map(String::from),
+                    topic: c
+                        .get("topic")
+                        .and_then(|t| t.get("value"))
+                        .and_then(|v| v.as_str())
+                        .map(String::from),
+                    user: None,
+                });
             }
 
-            // Check for next page
-            cursor = data
+            let next_cursor = data
                 .get("response_metadata")
                 .and_then(|m| m.get("next_cursor"))
                 .and_then(|c| c.as_str())
                 .filter(|s| !s.is_empty())
                 .map(String::from);
 
+            Ok((page_channels, next_cursor))
+        })
+        .await
+    }
+
+    pub async fn list_dms_page(
+        &self,
+        token: &str,
+        cursor: Option<&str>,
+    ) -> Result<(Vec<Channel>, Option<String>)> {
+        let users_map = self.get_users_cached(token).await;
+        with_retry(|| async {
+            let mut req = self
+                .client
+                .get(format!("{}/conversations.list", SLACK_API_BASE))
+                .header("Authorization", format!("Bearer {}", token))
+                .query(&[("types", "im")])
+                .query(&[("limit", "200")]);
+
+            if let Some(c) = cursor {
+                req = req.query(&[("cursor", c)]);
+            }
+
+            let response = req.send().await?;
+            let status = response.status();
+            if status == 429 {
+                let retry_after = response
+                    .headers()
+                    .get("retry-after")
+                    .and_then(|h| h.to_str().ok())
+                    .and_then(|s| s.parse::<u64>().ok())
+                    .unwrap_or(2);
+                return Err(anyhow!("429 retry_after:{retry_after}"));
+            }
+
+            let data: Value = response.json().await?;
+            if !data.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
+                let err = data
+                    .get("error")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("unknown");
+                if err == "rate_limited" {
+                    return Err(anyhow!("429 retry_after:2"));
+                }
+                return Err(anyhow!("Failed to list DMs: {err}"));
+            }
+
+            let empty: Vec<serde_json::Value> = Vec::new();
+            let channels = data
+                .get("channels")
+                .and_then(|v| v.as_array())
+                .unwrap_or(&empty);
+
+            let mut page_dms = Vec::new();
+            for c in channels.iter() {
+                if let Some(user_id) = c.get("user").and_then(|u| u.as_str()) {
+                    let mut channel = self.parse_channel(c, true).unwrap_or_else(|| Channel {
+                        id: String::new(),
+                        name: user_id.to_string(),
+                        is_dm: true,
+                        is_group: false,
+                        is_im: true,
+                        unread_count: 0,
+                        purpose: None,
+                        topic: None,
+                        user: Some(user_id.to_string()),
+                    });
+                    if let Some(user) = users_map.get(user_id) {
+                        channel.name = user.display_name();
+                    }
+                    channel.is_dm = true;
+                    channel.is_im = true;
+                    page_dms.push(channel);
+                }
+            }
+
+            let next_cursor = data
+                .get("response_metadata")
+                .and_then(|m| m.get("next_cursor"))
+                .and_then(|c| c.as_str())
+                .filter(|s| !s.is_empty())
+                .map(String::from);
+
+            Ok((page_dms, next_cursor))
+        })
+        .await
+    }
+
+    pub async fn list_channels(&self, token: &str) -> Result<Vec<Channel>> {
+        let mut all_channels = Vec::new();
+        let mut cursor: Option<String> = None;
+        let max_pages = 250;
+        let mut seen_cursors = std::collections::HashSet::new();
+
+        let mut page_count = 0;
+
+        loop {
+            page_count += 1;
+            tracing::info!(
+                "Fetching channels page {} (cursor: {:?})",
+                page_count,
+                cursor
+            );
+            let (page_channels, next_cursor) =
+                self.list_channels_page(token, cursor.as_deref()).await?;
+            tracing::info!(
+                "Page {} returned {} channels",
+                page_count,
+                page_channels.len()
+            );
+            all_channels.extend(page_channels);
+
+            if let Some(ref next) = next_cursor {
+                if !seen_cursors.insert(next.clone()) {
+                    return Err(anyhow!(
+                        "Slack channel pagination loop detected after {} pages; repeated cursor {}",
+                        page_count,
+                        next
+                    ));
+                }
+            }
+
+            cursor = next_cursor;
+
             if cursor.is_none() {
                 break;
+            }
+
+            // Fail explicitly rather than returning a silently truncated channel list.
+            if page_count >= max_pages {
+                return Err(anyhow!(
+                    "Slack channel pagination exceeded {} pages; workspace may be very large or pagination may be looping",
+                    max_pages
+                ));
             }
         }
 
@@ -352,9 +538,22 @@ impl SlackApi {
     }
 
     fn parse_channel(&self, c: &Value, is_dm: bool) -> Option<Channel> {
+        let name = if is_dm {
+            // For DMs, try to get username from user_id, fallback to ID
+            c.get("user").and_then(|u| u.as_str()).map(String::from)
+        } else {
+            // For regular channels, use name or fallback to ID
+            c.get("name")
+                .and_then(|n| n.as_str())
+                .map(String::from)
+                .or_else(|| c.get("id").and_then(|i| i.as_str()).map(String::from))
+        };
+
+        let name = name?;
+
         Some(Channel {
             id: c.get("id")?.as_str()?.to_string(),
-            name: c.get("name")?.as_str()?.to_string(),
+            name,
             is_dm,
             is_group: c.get("is_group").and_then(|v| v.as_bool()).unwrap_or(false),
             is_im: c.get("is_im").and_then(|v| v.as_bool()).unwrap_or(false),
@@ -376,62 +575,11 @@ impl SlackApi {
     pub async fn list_dms(&self, token: &str) -> Result<Vec<Channel>> {
         let mut all_dms = Vec::new();
         let mut cursor: Option<String> = None;
-        let limit = 200;
 
         loop {
-            let mut req = self
-                .client
-                .get(format!("{}/conversations.list", SLACK_API_BASE))
-                .header("Authorization", format!("Bearer {}", token))
-                .query(&[("types", "im")])
-                .query(&[("limit", limit.to_string().as_str())]);
-
-            if let Some(ref c) = cursor {
-                req = req.query(&[("cursor", c.as_str())]);
-            }
-
-            let response = req.send().await?;
-            let data: Value = response.json().await?;
-
-            if !data.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
-                return Err(anyhow!(
-                    "Failed to list DMs: {:?}",
-                    data.get("error").and_then(|v| v.as_str())
-                ));
-            }
-
-            let empty: Vec<serde_json::Value> = Vec::new();
-            let channels = data
-                .get("channels")
-                .and_then(|v| v.as_array())
-                .unwrap_or(&empty);
-
-            for c in channels.iter() {
-                if let Some(user) = c.get("user").and_then(|u| u.as_str()) {
-                    let mut channel = self.parse_channel(c, true).unwrap_or_else(|| Channel {
-                        id: String::new(),
-                        name: user.to_string(),
-                        is_dm: true,
-                        is_group: false,
-                        is_im: true,
-                        unread_count: 0,
-                        purpose: None,
-                        topic: None,
-                        user: Some(user.to_string()),
-                    });
-                    channel.is_dm = true;
-                    channel.is_im = true;
-                    all_dms.push(channel);
-                }
-            }
-
-            // Check for next page
-            cursor = data
-                .get("response_metadata")
-                .and_then(|m| m.get("next_cursor"))
-                .and_then(|c| c.as_str())
-                .filter(|s| !s.is_empty())
-                .map(String::from);
+            let (page_dms, next_cursor) = self.list_dms_page(token, cursor.as_deref()).await?;
+            all_dms.extend(page_dms);
+            cursor = next_cursor;
 
             if cursor.is_none() {
                 break;
@@ -449,7 +597,7 @@ impl SlackApi {
     ) -> Result<Vec<Message>> {
         let channel_id = channel_id.to_string();
         let token = token.to_string();
-        
+
         with_retry(move || {
             let channel_id = channel_id.clone();
             let token = token.clone();
@@ -467,7 +615,10 @@ impl SlackApi {
                 let data: Value = response.json().await?;
 
                 if !data.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
-                    let error_msg = data.get("error").and_then(|v| v.as_str()).unwrap_or("unknown");
+                    let error_msg = data
+                        .get("error")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("unknown");
                     if error_msg == "rate_limited" || status.as_u16() == 429 {
                         return Err(anyhow!("429"));
                     }
@@ -487,7 +638,8 @@ impl SlackApi {
                     .rev()
                     .collect())
             }
-        }).await
+        })
+        .await
     }
 
     pub async fn send_message(&self, token: &str, channel_id: &str, text: &str) -> Result<String> {
@@ -520,14 +672,18 @@ impl SlackApi {
                         .map(String::from)
                         .ok_or_else(|| anyhow!("No ts in response"))
                 } else {
-                    let error_msg = data.get("error").and_then(|v| v.as_str()).unwrap_or("unknown");
+                    let error_msg = data
+                        .get("error")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("unknown");
                     if error_msg == "rate_limited" || status.as_u16() == 429 {
                         return Err(anyhow!("429"));
                     }
                     Err(anyhow!("Failed to send message: {}", error_msg))
                 }
             }
-        }).await
+        })
+        .await
     }
 
     pub async fn send_message_to_thread(
@@ -569,14 +725,18 @@ impl SlackApi {
                         .map(String::from)
                         .ok_or_else(|| anyhow!("No ts in response"))
                 } else {
-                    let error_msg = data.get("error").and_then(|v| v.as_str()).unwrap_or("unknown");
+                    let error_msg = data
+                        .get("error")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("unknown");
                     if error_msg == "rate_limited" || status.as_u16() == 429 {
                         return Err(anyhow!("429"));
                     }
                     Err(anyhow!("Failed to send thread message: {}", error_msg))
                 }
             }
-        }).await
+        })
+        .await
     }
 
     pub async fn list_users(&self, token: &str) -> Result<Vec<User>> {
@@ -596,7 +756,10 @@ impl SlackApi {
                 let data: Value = response.json().await?;
 
                 if !data.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
-                    let error_msg = data.get("error").and_then(|v| v.as_str()).unwrap_or("unknown");
+                    let error_msg = data
+                        .get("error")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("unknown");
                     if error_msg == "rate_limited" || status.as_u16() == 429 {
                         return Err(anyhow!("429"));
                     }
@@ -634,7 +797,8 @@ impl SlackApi {
                     })
                     .collect())
             }
-        }).await
+        })
+        .await
     }
 
     pub async fn get_user(&self, token: &str, user_id: &str) -> Result<User> {
@@ -749,14 +913,18 @@ impl SlackApi {
                 if data.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
                     Ok(())
                 } else {
-                    let error_msg = data.get("error").and_then(|v| v.as_str()).unwrap_or("unknown");
+                    let error_msg = data
+                        .get("error")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("unknown");
                     if error_msg == "rate_limited" || status.as_u16() == 429 {
                         return Err(anyhow!("429"));
                     }
                     Err(anyhow!("Failed to update message: {}", error_msg))
                 }
             }
-        }).await
+        })
+        .await
     }
 
     pub async fn delete_message(&self, token: &str, channel_id: &str, ts: &str) -> Result<()> {
@@ -786,14 +954,18 @@ impl SlackApi {
                 if data.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
                     Ok(())
                 } else {
-                    let error_msg = data.get("error").and_then(|v| v.as_str()).unwrap_or("unknown");
+                    let error_msg = data
+                        .get("error")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("unknown");
                     if error_msg == "rate_limited" || status.as_u16() == 429 {
                         return Err(anyhow!("429"));
                     }
                     Err(anyhow!("Failed to delete message: {}", error_msg))
                 }
             }
-        }).await
+        })
+        .await
     }
 
     pub async fn add_reaction(
@@ -832,14 +1004,18 @@ impl SlackApi {
                 if data.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
                     Ok(())
                 } else {
-                    let error_msg = data.get("error").and_then(|v| v.as_str()).unwrap_or("unknown");
+                    let error_msg = data
+                        .get("error")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("unknown");
                     if error_msg == "rate_limited" || status.as_u16() == 429 {
                         return Err(anyhow!("429"));
                     }
                     Err(anyhow!("Failed to add reaction: {}", error_msg))
                 }
             }
-        }).await
+        })
+        .await
     }
 
     pub async fn remove_reaction(
@@ -878,14 +1054,18 @@ impl SlackApi {
                 if data.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
                     Ok(())
                 } else {
-                    let error_msg = data.get("error").and_then(|v| v.as_str()).unwrap_or("unknown");
+                    let error_msg = data
+                        .get("error")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("unknown");
                     if error_msg == "rate_limited" || status.as_u16() == 429 {
                         return Err(anyhow!("429"));
                     }
                     Err(anyhow!("Failed to remove reaction: {}", error_msg))
                 }
             }
-        }).await
+        })
+        .await
     }
 
     pub async fn get_thread_replies(
@@ -916,7 +1096,10 @@ impl SlackApi {
                 let data: Value = response.json().await?;
 
                 if !data.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
-                    let error_msg = data.get("error").and_then(|v| v.as_str()).unwrap_or("unknown");
+                    let error_msg = data
+                        .get("error")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("unknown");
                     if error_msg == "rate_limited" || status.as_u16() == 429 {
                         return Err(anyhow!("429"));
                     }
@@ -935,7 +1118,8 @@ impl SlackApi {
                     .filter_map(|m| Message::from_slack_api(m, &users_map))
                     .collect())
             }
-        }).await
+        })
+        .await
     }
 
     pub async fn upload_file(

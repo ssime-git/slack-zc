@@ -1,5 +1,66 @@
 use super::*;
 
+/// Simple fuzzy matching algorithm for channel names
+/// Returns a score if the query matches the target, None otherwise
+fn fuzzy_match(query: &str, target: &str) -> Option<i32> {
+    let query_lower = query.to_lowercase();
+    let target_lower = target.to_lowercase();
+
+    let query_chars: Vec<char> = query_lower.chars().collect();
+    let target_chars: Vec<char> = target_lower.chars().collect();
+
+    let mut query_idx = 0;
+    let mut target_idx = 0;
+    let mut score = 0;
+    let mut consecutive_matches = 0;
+    let mut last_match_idx = 0;
+
+    // Check if all query characters appear in target in order
+    while query_idx < query_chars.len() && target_idx < target_chars.len() {
+        if query_chars[query_idx] == target_chars[target_idx] {
+            // Base score for matching character
+            score += 10;
+
+            // Bonus for consecutive matches
+            if target_idx > 0 && target_idx == last_match_idx + 1 {
+                consecutive_matches += 1;
+                score += consecutive_matches * 5;
+            } else {
+                consecutive_matches = 0;
+            }
+
+            // Bonus for matching at word start (after space or hyphen or underscore)
+            if target_idx == 0
+                || target_chars[target_idx.saturating_sub(1)] == ' '
+                || target_chars[target_idx.saturating_sub(1)] == '-'
+                || target_chars[target_idx.saturating_sub(1)] == '_'
+            {
+                score += 15;
+            }
+
+            // Bonus for exact case match
+            let query_char = query.chars().nth(query_idx)?;
+            let target_char = target.chars().nth(target_idx)?;
+            if query_char == target_char && query_char.is_uppercase() {
+                score += 5;
+            }
+
+            last_match_idx = target_idx;
+            query_idx += 1;
+        }
+        target_idx += 1;
+    }
+
+    // Only return score if all query characters were matched
+    if query_idx >= query_chars.len() {
+        // Penalty for longer target strings (prefer shorter matches)
+        score -= (target.len() as i32 - query.len() as i32).max(0);
+        Some(score)
+    } else {
+        None
+    }
+}
+
 impl App {
     pub fn handle_event(&mut self, event: Event) -> Result<bool> {
         match event {
@@ -59,9 +120,6 @@ impl App {
                                 }
                             }
                         }
-                    } else if matches!(onboarding.current_screen, OnboardingScreen::ZeroClawPairing)
-                    {
-                        self.start_zeroclaw_pairing();
                     } else if matches!(onboarding.current_screen, OnboardingScreen::Complete) {
                         self.onboarding = None;
                     } else {
@@ -221,7 +279,8 @@ impl App {
                 }
                 KeyCode::Down => {
                     if let Some(picker) = self.channel_picker.as_mut() {
-                        if picker.selected_index < picker.filtered_channels.len().saturating_sub(1) {
+                        if picker.selected_index < picker.filtered_channels.len().saturating_sub(1)
+                        {
                             picker.selected_index += 1;
                         }
                     }
@@ -229,7 +288,15 @@ impl App {
                 KeyCode::Enter => {
                     if let Some(picker) = self.channel_picker.take() {
                         if let Some(ch) = picker.filtered_channels.get(picker.selected_index) {
-                            self.insert_channel_reference(&ch.name, picker.trigger_position);
+                            if picker.trigger_position > 0 {
+                                self.insert_channel_reference(&ch.name, picker.trigger_position);
+                            }
+                            self.sidebar_cursor = self
+                                .channels
+                                .iter()
+                                .position(|c| c.id == ch.id)
+                                .unwrap_or(0);
+                            self.select_channel(self.sidebar_cursor);
                             self.fetch_channel_history(&ch.id)?;
                         }
                     }
@@ -238,12 +305,21 @@ impl App {
                     if let Some(picker) = self.channel_picker.as_mut() {
                         picker.query.push(c);
                         let query = picker.query.to_lowercase();
-                        picker.filtered_channels = self
+
+                        // Use fuzzy matching with scoring
+                        let mut scored_channels: Vec<(i32, Channel)> = self
                             .channels
                             .iter()
-                            .filter(|ch| ch.name.to_lowercase().contains(&query))
-                            .cloned()
+                            .filter_map(|ch| {
+                                fuzzy_match(&query, &ch.name).map(|score| (score, ch.clone()))
+                            })
                             .collect();
+
+                        // Sort by score descending (higher score = better match)
+                        scored_channels.sort_by(|a, b| b.0.cmp(&a.0));
+
+                        picker.filtered_channels =
+                            scored_channels.into_iter().map(|(_, ch)| ch).collect();
                         picker.selected_index = 0;
                     }
                 }
@@ -251,12 +327,25 @@ impl App {
                     if let Some(picker) = self.channel_picker.as_mut() {
                         picker.query.pop();
                         let query = picker.query.to_lowercase();
-                        picker.filtered_channels = self
-                            .channels
-                            .iter()
-                            .filter(|ch| ch.name.to_lowercase().contains(&query))
-                            .cloned()
-                            .collect();
+
+                        if query.is_empty() {
+                            picker.filtered_channels = self.channels.clone();
+                        } else {
+                            // Use fuzzy matching with scoring
+                            let mut scored_channels: Vec<(i32, Channel)> = self
+                                .channels
+                                .iter()
+                                .filter_map(|ch| {
+                                    fuzzy_match(&query, &ch.name).map(|score| (score, ch.clone()))
+                                })
+                                .collect();
+
+                            // Sort by score descending (higher score = better match)
+                            scored_channels.sort_by(|a, b| b.0.cmp(&a.0));
+
+                            picker.filtered_channels =
+                                scored_channels.into_iter().map(|(_, ch)| ch).collect();
+                        }
                         picker.selected_index = 0;
                     }
                 }
@@ -275,7 +364,14 @@ impl App {
                 return Ok(false);
             }
             KeyCode::Char('k') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                self.show_channel_search = true;
+                self.channel_picker = Some(ChannelPicker {
+                    query: String::new(),
+                    filtered_channels: self.channels.clone(),
+                    selected_index: self
+                        .sidebar_cursor
+                        .min(self.channels.len().saturating_sub(1)),
+                    trigger_position: 0,
+                });
                 return Ok(false);
             }
             KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
@@ -431,6 +527,19 @@ impl App {
                     self.show_error_details = !self.show_error_details;
                 }
             }
+            // Navigation shortcuts for channel sections
+            KeyCode::Char('c') => {
+                // Jump to first regular channel
+                if let Some(first_regular_idx) = self.channels.iter().position(|ch| !ch.is_dm) {
+                    self.sidebar_cursor = first_regular_idx;
+                }
+            }
+            KeyCode::Char('m') => {
+                // Jump to first DM
+                if let Some(first_dm_idx) = self.channels.iter().position(|ch| ch.is_dm) {
+                    self.sidebar_cursor = first_dm_idx;
+                }
+            }
             KeyCode::Esc => {
                 self.input.clear();
             }
@@ -457,10 +566,96 @@ impl App {
             }
             // Single-letter shortcuts work in messages focus
             KeyCode::Char('t') => {
+                // Enter thread reply mode for the message at current scroll position
                 if let Some(ref channel) = self.selected_channel {
                     if let Some(ch) = self.channels.get(*channel) {
-                        let channel_id = ch.id.clone();
-                        self.toggle_thread_collapse(&channel_id);
+                        if let Some(messages) = self.messages.get(&ch.id) {
+                            let msg_index =
+                                self.scroll_offset.min(messages.len().saturating_sub(1));
+                            if let Some(msg) = messages.get(msg_index) {
+                                // Only enter thread mode if message has replies or is a thread parent
+                                let has_replies = msg.reply_count.is_some_and(|c| c > 0);
+                                let is_thread_parent = msg.thread_ts.is_some() || has_replies;
+
+                                if is_thread_parent {
+                                    let thread_ts =
+                                        msg.thread_ts.clone().unwrap_or_else(|| msg.ts.clone());
+
+                                    // Set active thread for reply mode
+                                    self.active_threads.insert(ch.id.clone(), thread_ts.clone());
+
+                                    // Auto-load thread replies if not already loaded
+                                    let needs_load = self
+                                        .threads
+                                        .get(&ch.id)
+                                        .map(|threads| {
+                                            !threads.iter().any(|t| t.parent_ts == thread_ts)
+                                        })
+                                        .unwrap_or(true);
+
+                                    if needs_load {
+                                        let _token = ch.id.clone(); // Actually need workspace token
+                                        let channel_id = ch.id.clone();
+                                        let api = self.slack_api.clone();
+                                        let ws_token = self
+                                            .workspaces
+                                            .get(self.active_workspace)
+                                            .map(|ws| ws.workspace.xoxp_token.clone())
+                                            .unwrap_or_default();
+
+                                        self.spawn_app_task(async move {
+                                            match api
+                                                .get_thread_replies(
+                                                    &ws_token,
+                                                    &channel_id,
+                                                    &thread_ts,
+                                                )
+                                                .await
+                                            {
+                                                Ok(replies) => AppAsyncEvent::ThreadRepliesLoaded {
+                                                    channel_id,
+                                                    parent_ts: thread_ts,
+                                                    replies,
+                                                    error: None,
+                                                },
+                                                Err(e) => AppAsyncEvent::ThreadRepliesLoaded {
+                                                    channel_id,
+                                                    parent_ts: thread_ts,
+                                                    replies: Vec::new(),
+                                                    error: Some(App::actionable_error(&e)),
+                                                },
+                                            }
+                                        });
+                                    }
+
+                                    // Switch to input focus to type the reply
+                                    self.focus = Focus::Input;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            KeyCode::Char('T') => {
+                // Toggle thread expansion/collapse for current message
+                if let Some(ref channel) = self.selected_channel {
+                    if let Some(ch) = self.channels.get(*channel) {
+                        if let Some(messages) = self.messages.get(&ch.id) {
+                            let msg_index =
+                                self.scroll_offset.min(messages.len().saturating_sub(1));
+                            if let Some(msg) = messages.get(msg_index) {
+                                let thread_key = msg.thread_ts.clone().or(Some(msg.ts.clone()));
+                                if let Some(thread_key) = thread_key {
+                                    if let Some(threads) = self.threads.get_mut(&ch.id) {
+                                        if let Some(thread) =
+                                            threads.iter_mut().find(|t| t.parent_ts == thread_key)
+                                        {
+                                            thread.toggle_collapse();
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -509,6 +704,12 @@ impl App {
     fn handle_input_keys(&mut self, key: KeyEvent) -> Result<()> {
         match key.code {
             KeyCode::Esc => {
+                // If thread mode is active, deactivate it first (keep input focused)
+                if let Some(ch_id) = self.get_active_channel_id() {
+                    if self.active_threads.remove(&ch_id).is_some() {
+                        return Ok(());
+                    }
+                }
                 self.input.clear();
                 self.focus = Focus::Sidebar;
             }
@@ -520,7 +721,8 @@ impl App {
                 self.input.handle_backspace();
             }
             KeyCode::Char('#') => {
-                let should_trigger = self.input.buffer.is_empty() || self.input.buffer.ends_with(' ');
+                let should_trigger =
+                    self.input.buffer.is_empty() || self.input.buffer.ends_with(' ');
                 self.input.handle_char('#');
                 if should_trigger {
                     self.channel_picker = Some(ChannelPicker {

@@ -1,381 +1,196 @@
-# AGENT.md - Code Best Practices for slack-zc
+# AGENT.md - slack-zc Integration Notes
 
-## Project Overview
+Terminal Slack client with ZeroClaw AI integration (Rust/Ratatui). Workspace split:
 
-**slack-zc** is a terminal Slack client with ZeroClaw AI agent integration, built with Rust/Ratatui.
-
-## Architecture Principles
-
-### 1. Workspace Structure
-- **3-crate workspace**: `tui`, `slack`, `agent`
-- **TUI crate**: User interface, event handling, rendering
-- **Slack crate**: API client, Socket Mode, OAuth, types
-- **Agent crate**: ZeroClaw gateway, command parsing
-
-### 2. Module Boundaries
-```
-slack-zc/
-├── crates/
-│   ├── tui/      # UI only - no direct API calls
-│   ├── slack/    # All Slack API interaction
-│   └── agent/    # ZeroClaw agent communication
+```text
+crates/slack/   Slack auth, REST, Socket Mode, session handling
+crates/tui/     App state, rendering, input, onboarding, local cache
+crates/agent/   ZeroClaw gateway client and runner
 ```
 
-## Coding Standards
+## What Actually Matters
 
-### Error Handling
-- Use `anyhow::Result` for propagation-friendly errors
-- Create typed error enums for distinct failure modes
-- Include user-facing remediation hints in errors
-- Never expose raw tokens in error messages
+These are the implementation constraints discovered while making the project work end to end.
 
-```rust
-// Good: typed error with context
-#[derive(Debug, thiserror::Error)]
-pub enum ApiError {
-    #[error("Authentication failed: {0}")]
-    Auth(String),
-    #[error("Rate limited. Retry after {retry_after}s")]
-    RateLimited { retry_after: u64 },
-    #[error("Network error: {0}")]
-    Network(#[from] reqwest::Error),
-}
+### 1. Keep The TUI Responsive
 
-// Bad: generic error loses context
-pub fn foo() -> Result<()> { Err(anyhow!("failed")) }
+- Never block startup on `conversations.list` for large workspaces.
+- Load cached channels first, then refresh Slack in the background.
+- Emit incremental app events as pages arrive instead of waiting for one giant result.
+- If Slack returns `429`, retry with backoff but keep the UI usable.
+
+Relevant files:
+
+- `crates/tui/src/app/effects.rs`
+- `crates/tui/src/app/types.rs`
+- `crates/tui/src/cache.rs`
+- `crates/slack/src/api.rs`
+
+### 2. Treat ZeroClaw As A Gateway, Not As A CLI UI
+
+- Do not rely on parsing human-oriented terminal output as the main integration path.
+- The stable contract is the local ZeroClaw gateway API.
+- `slack-zc` should prefer:
+  1. connect to an existing gateway
+  2. start a gateway with existing bearer/local state
+  3. fail with a clear remediation message
+- Pairing code parsing is only legacy fallback behavior and should not drive the normal UX.
+
+Relevant files:
+
+- `crates/agent/src/runner.rs`
+- `crates/agent/src/gateway.rs`
+- `crates/tui/src/app/effects.rs`
+
+### 3. Use The Real Webhook Contract
+
+- The working gateway contract is prompt-oriented.
+- `/webhook` accepts a payload like:
+
+```json
+{ "message": "..." }
 ```
 
-### Async Patterns
-- **Never block the UI thread** with `block_on` in interactive flows
-- Use tokio spawn for fire-and-forget operations
-- All network calls must be async
+- Do not send a fake structured command protocol unless ZeroClaw officially supports it.
+- Parse JSON responses defensively and prefer `response`, then `message`, then raw text.
 
-```rust
-// Good: async in App context
-rt.block_on(async {
-    api.get_history(&token, &channel_id, 50).await
-});
+Relevant files:
 
-// Bad: blocks UI thread
-fn on_key_press() {
-    let rt = tokio::runtime::Handle::current();
-    rt.block_on(api.call()); // Blocks event loop
-}
-```
+- `crates/agent/src/commands.rs`
+- `crates/agent/src/gateway.rs`
+- `crates/tui/src/app/actions.rs`
 
-### Security Practices
-- **Never log tokens or secrets** - always redact
-- Use `0600` file permissions for session data
-- Encrypt sensitive data at rest (AES-GCM)
-- Set timeouts on all HTTP clients (connect + request)
+### 4. ZeroClaw Config Must Be Reused
 
-```rust
-// Good: redact sensitive data in logs
-tracing::info!("API call to {} completed", redact_url(url));
+- Reuse `~/.zeroclaw/config.toml` and related local state when possible.
+- If ZeroClaw already has a configured gateway port, prefer it over the local fallback config.
+- If embedded startup is needed, copied config may require provider normalization.
+- In practice, `openai-codex` may be the valid active profile even when a generic `openai` value exists elsewhere.
 
-// Good: secure file permissions
-std::fs::set_permissions(path, Permissions::from_mode(0o600))?;
+Relevant files:
 
-// Good: timeouts on HTTP client
-reqwest::Client::builder()
-    .timeout(Duration::from_secs(30))
-    .connect_timeout(Duration::from_secs(10))
-    .build()?;
-```
+- `crates/slack/src/auth.rs`
+- `crates/agent/src/runner.rs`
 
-### Rate Limiting
-- Implement retry with exponential backoff + jitter
-- Handle 429 responses explicitly
-- Track rate limits per workspace
+### 5. `dry-run` Must Be The Safe Default
 
-```rust
-async fn with_retry<F, T>(mut f: F) -> Result<T>
-where
-    F: FnMut() -> futures::future::BoxFuture<Result<T>>,
-{
-    let mut attempts = 0;
-    let max_attempts = 3;
-    
-    loop {
-        match f().await {
-            Ok(v) => return Ok(v),
-            Err(e) if is_rate_limited(&e) && attempts < max_attempts => {
-                let delay = calculate_backoff(attempts);
-                tokio::time::sleep(delay).await;
-                attempts += 1;
-            }
-            Err(e) => return Err(e),
-        }
-    }
-}
-```
+- Agent commands are risky in a real Slack workspace.
+- Default behavior must keep responses local in the TUI.
+- Real Slack posting must be explicitly enabled by config.
+- The UI must show the current mode clearly.
 
-### Type Safety
-- Use newtypes for domain concepts
-- Avoid `String` when `&str` suffices
-- Prefer enums over boolean flags
+Relevant files:
 
-```rust
-// Good: typed channel ID
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct ChannelId(String);
+- `crates/tui/src/config.rs`
+- `crates/tui/src/app/actions.rs`
+- `crates/tui/src/app/render.rs`
 
-// Good: enum for input modes
-enum InputMode {
-    Normal,
-    AgentCommand,
-    AgentMention,
-}
+### 6. Timeouts Need To Be Per Command
 
-// Bad: boolean explosion
-struct Config {
-    is_agent_mode: bool,
-    is_editing: bool,
-    is_searching: bool,
-}
-```
+- A single global HTTP timeout is too blunt.
+- `/résume` and `/cherche` can need longer than short transport checks.
+- Use short connect timeouts, but request-level timeouts for agent commands.
+- Prefer `127.0.0.1` over `localhost` for the gateway base URL to avoid local resolution weirdness.
 
-### Testing
-- Unit tests for pure functions
-- Integration tests for API error scenarios
-- Test Socket Mode reconnect behavior
+Relevant files:
 
-## MVP Quality Checklist
+- `crates/agent/src/gateway.rs`
+- `crates/tui/src/app/actions.rs`
 
-### Before Code Review
-- [ ] No `unwrap()` in production code
-- [ ] No `expect()` without context
-- [ ] All errors have user-friendly messages
-- [ ] No sensitive data in logs
-- [ ] Timeouts on all network calls
-- [ ] File permissions set correctly (0600)
+### 7. Slack Loading Must Be Honest
 
-### Before Release
-- [ ] Retry + backoff for API calls
-- [ ] Proper error categories (auth/network/rate-limit)
-- [ ] Rate limit handling (429 responses)
-- [ ] Token rotation path exists
-- [ ] Health diagnostics available
-- [ ] Integration tests pass
+- Never silently return partial channel lists as success.
+- Detect repeated cursors and page ceilings explicitly.
+- Surface pagination errors instead of pretending initialization completed.
 
-## Key Dependencies
+Relevant files:
 
-```toml
-# Required for this project
-tokio = { version = "1", features = ["full"] }
-reqwest = { version = "0.12", features = ["json", "rustls-tls", "multipart"] }
-ratatui = "0.29"
-anyhow = "1"
-thiserror = "1"
-tracing = "0.1"
-aes-gcm = "0.10"
-```
+- `crates/slack/src/api.rs`
 
-## Anti-Patterns to Avoid
+### 8. Workspace State Cannot Assume Successful Slack Init
 
-1. **Blocking the event loop**: Never use `block_on` in key handlers
-2. **Silent failures**: Always log or propagate errors
-3. **Leaking tokens**: Redact all sensitive data from logs
-4. **No timeouts**: Every network call needs bounds
-5. **Global state**: Prefer dependency injection
-6. **Magic strings**: Use constants or enums
+- The active workspace in session storage may not exist in initialized runtime state.
+- Always resolve runtime workspaces by actual loaded `team_id`.
+- Startup must degrade to an empty-but-alive UI, not panic.
 
-## File Organization
+Relevant files:
 
-```
-crates/slack/src/
-├── api.rs          # Slack REST client
-├── auth.rs         # OAuth + session management  
-├── socket.rs       # Socket Mode client
-├── types.rs        # Domain types (Channel, Message, User)
-└── lib.rs          # Public API exports
+- `crates/tui/src/app/effects.rs`
 
-crates/tui/src/
-├── app.rs          # Main application state + handlers
-├── main.rs         # Entry point
-├── config.rs       # Configuration loading
-├── input.rs        # Input mode handling
-├── keybinds.rs    # Keyboard shortcuts
-├── ui/             # Rendering components
-│   ├── layout.rs
-│   └── panel.rs
-└── onboarding/     # Setup wizard
-```
+## Tips And Tricks
 
-## Performance Considerations
+### Startup Checklist
 
-- Cache user info with TTL (avoid `users.list` on every message)
-- Lazy-load message history
-- Use `&str` for string slices where possible
-- Batch API calls when possible
+When debugging startup, verify in this order:
 
-## Documentation
+1. Slack auth works
+2. cached channels load
+3. background paging starts
+4. ZeroClaw becomes `active`
+5. agent panel shows `dry-run` or `enabled`
 
-- Document public APIs with doc comments
-- Include error cases in function docs
-- Keep README updated with current status
+If the TUI opens but feels empty, do not assume a crash. Check whether Slack paging is still running.
 
----
+### Safe Manual Testing
 
-# Critical Fixes & Code Review Items
+Use this sequence:
 
-This section documents specific bugs and issues identified during code review that **must be fixed**.
+1. `cargo test -q`
+2. `cargo run`
+3. in the TUI, confirm `Post to Slack: dry-run`
+4. press `i`
+5. test:
+   - `/draft répondre poliment que je regarde demain`
+   - `/cherche test intégration`
+   - `/résume`
 
-## 1. Dead Code & Unsafe Patterns
+Success criteria:
 
-### OAuth Server (DELETE)
-- **File**: `crates/slack/src/oauth_server.rs`
-- **Issue**: `start_oauth_server` calls `std::process::exit(0)` on OAuth redirect, killing the TUI process
-- **Fix**: Delete `oauth_server.rs` entirely. Remove `pub mod oauth_server` from `lib.rs`.
+- ZeroClaw status is `active`
+- the command appears under `Recent`
+- nothing is posted to Slack
 
-### AgentRunner Drop (FIX)
-- **File**: `crates/agent/src/runner.rs`
-- **Issue**: Drop impl calls `tokio::runtime::Handle::current().block_on(...)` which panics if runtime is shut down
-- **Fix**:
-```rust
-impl Drop for AgentRunner {
-    fn drop(&mut self) {
-        if let Some(mut child) = self.child.take() {
-            let _ = child.start_kill();
-        }
-        self.gateway = None;
-    }
-}
-```
+### Useful Logs
 
-## 2. Security Issues
+`crates/tui/src/main.rs` initializes logging to `slack-zc.log`.
 
-### Credential Logging (FIX)
-- **File**: `crates/agent/src/runner.rs`
-- **Issue**: Line 84 logs pairing code in plaintext: `info!("Found pairing code: {}", code)`
-- **Fix**: `info!("ZeroClaw pairing code obtained (redacted)")`
+Useful patterns:
 
-### Token Redaction (ALWAYS)
-- Never log URLs containing tokens
-- Use redacted format: `info!("API call to {} completed", redact_url(url))`
+- `Dispatching agent command`
+- `Agent command completed successfully`
+- `Dry-run enabled; agent response kept local`
+- `Workspace ... channels updated`
+- `Retrying after error: 429`
 
-## 3. Performance Issues
+### Common Failure Modes
 
-### User Cache (REQUIRED)
-- **File**: `crates/slack/src/api.rs`
-- **Issue**: `get_history` and `get_thread_replies` call `list_users` on every invocation, burning rate limits
-- **Fix**: Add TTL-based user cache to `SlackApi`:
+- `Webhook failed: 401 Unauthorized`
+  - bearer is wrong for the actual gateway endpoint
+  - or the contract being called is not the one ZeroClaw expects
 
-```rust
-const USER_CACHE_TTL: Duration = Duration::from_secs(600);
+- `error sending request for url (...)`
+  - usually transport/timeout/base URL issue
+  - check `127.0.0.1` vs `localhost`
 
-#[derive(Clone)]
-pub struct SlackApi {
-    client: Client,
-    user_cache: Arc<tokio::sync::RwLock<UserCache>>,
-}
+- Slack loads forever
+  - likely large workspace + pagination + `429`
+  - the fix is incremental loading, not a longer blocking init
 
-struct UserCache {
-    users: HashMap<String, User>,
-    updated_at: Option<Instant>,
-}
+- ZeroClaw `active` but commands fail
+  - `/health` working is not enough
+  - verify the real webhook path and payload contract
 
-impl SlackApi {
-    pub async fn get_users_cached(&self, token: &str) -> HashMap<String, User> {
-        let cache = self.user_cache.read().await;
-        if let Some(ref updated_at) = cache.updated_at {
-            if updated_at.elapsed() < USER_CACHE_TTL && !cache.users.is_empty() {
-                return cache.users.clone();
-            }
-        }
-        drop(cache);
+## Code Rules
 
-        let users = self.list_users(token).await.unwrap_or_default();
-        let mut cache = self.user_cache.write().await;
-        cache.users = users.clone();
-        cache.updated_at = Some(Instant::now());
-        users.into_iter().map(|u| (u.id.clone(), u)).collect()
-    }
-}
-```
+- No blocking UI thread for network work
+- No secret leakage in logs
+- No `unwrap()` in normal runtime paths
+- Prefer typed errors with actionable messages
+- Keep Slack, TUI, and ZeroClaw concerns separated
+- Keep docs aligned with actual behavior, especially around `dry-run`
 
-## 4. Clippy Warnings (MUST FIX)
+## Before Commit
 
-### needless_borrow
-```rust
-// Bad
-if let Some(ref ws) = self.workspaces.get(idx) { ... }
-
-// Good  
-if let Some(ws) = self.workspaces.get(idx) { ... }
-```
-
-### unnecessary_map_or
-```rust
-// Bad
-.map_or(false, |c| c > 0)
-
-// Good
-.is_some_and(|c| c > 0)
-```
-
-### iter_nth on VecDeque
-```rust
-// Bad
-.iter().nth(n)
-
-// Good
-.get(n)
-```
-
-### collapsible_if
-```rust
-// Bad
-if condition {
-    if other { ... }
-}
-
-// Good
-if condition && other { ... }
-```
-
-### manual_strip
-```rust
-// Bad
-if s.starts_with('#') {
-    s[1..].to_string()
-}
-
-// Good
-if let Some(stripped) = s.strip_prefix('#') {
-    stripped.to_string()
-}
-```
-
-### unwrap_or_default
-```rust
-// Bad
-.or_insert_with(Vec::new)
-
-// Good
-.or_default()
-```
-
-### new_without_default
-- Add `impl Default` for `SlackApi`, `InputState`, `OnboardingState`, `App`
-
-## 5. App Task Cloning
-
-- **File**: `crates/tui/src/app.rs`
-- **Issue**: Task closures create `SlackApi::new()` fresh each time, losing cache
-- **Fix**: Clone api before spawning:
-```rust
-let api = self.slack_api.clone();
-self.spawn_app_task(async move {
-    match api.get_history(&token, &channel_id, 50).await { ... }
-});
-```
-
-## Verification Commands
-
-After any changes, run:
-```bash
-cargo build           # 0 errors, 0 warnings
-cargo clippy -- -W clippy::all  # 0 warnings
-cargo test            # all tests pass
-```
+- `cargo test -q`
+- sanity-check the TUI in `dry-run`
+- ensure docs match the real current behavior

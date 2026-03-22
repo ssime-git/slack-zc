@@ -1,6 +1,6 @@
 # slack-zc
 
-A lightweight terminal Slack client written in Rust. Browse channels, send messages, and use AI-powered features through Slack — all without leaving your terminal.
+A terminal Slack client written in Rust, with ZeroClaw integration for AI-assisted commands directly from the TUI.
 
 ## Quick Look
 
@@ -17,61 +17,135 @@ A lightweight terminal Slack client written in Rust. Browse channels, send messa
 [input: type your message here...]
 ```
 
+## Current State
+
+The project currently provides:
+
+- Slack authentication and workspace loading
+- Incremental channel loading for large workspaces
+- Local channel cache for faster restarts
+- ZeroClaw agent integration in the right-side panel
+- Safe `dry-run` mode for agent commands
+
+By default, agent responses are **not posted to Slack**. They stay local in the TUI until you explicitly enable posting.
+
 ## Features
 
-- **Full Slack in Your Terminal** - Real-time messaging, threads, reactions, file uploads
-- **Multi-workspace** - Jump between workspaces with `Ctrl+W`
-- **AI-Powered Commands** - Use ZeroClaw to summarize, draft, and analyze with `/résume`, `/draft`, `/cherche`
-- **Mouse Support** - Click panels to navigate, drag dividers to resize
-- **Search** - `Ctrl+K` to instantly find channels and DMs
-- **Encrypted Storage** - Your credentials are encrypted locally, never stored in plain text
-- **Real-time Sync** - Socket Mode keeps you in sync with Slack events
+- **Terminal-first Slack client** - navigate channels and message history from the TUI
+- **Multi-workspace** - switch workspaces from the interface
+- **AI commands** - `/résume`, `/draft`, `/cherche` via ZeroClaw
+- **Incremental loading** - the UI stays usable while large Slack workspaces finish loading
+- **Channel cache** - previously loaded channels are restored immediately on restart
+- **Mouse support** - click panels and resize the layout
+- **Search** - `Ctrl+K` to find channels and DMs quickly
+- **Safe testing mode** - `dry-run` prevents accidental Slack spam while testing agent flows
 
 ## Architecture
 
+```mermaid
+flowchart LR
+    TUI["slack-zc TUI<br/>Ratatui + Tokio"] --> Slack["crates/slack<br/>auth + REST + Socket Mode"]
+    TUI --> Agent["crates/agent<br/>ZeroClaw runner + gateway client"]
+    TUI --> Cache["Local cache<br/>workspace channels"]
+    TUI --> Session["Local session/config<br/>Slack + ZeroClaw state"]
+    Slack --> Workspace["Slack workspace"]
+    Agent --> Gateway["ZeroClaw gateway"]
+    Gateway --> LLM["LLM provider"]
 ```
-┌──────────────────────────────────────────────────────────────┐
-│                        slack-zc (TUI)                        │
-│                      (Ratatui + Tokio)                       │
-└─────────────────────┬──────────────────────────────────────┘
-                      │
-      ┌───────────────┼───────────────┐
-      │               │               │
-      ▼               ▼               ▼
-   ┌──────┐      ┌──────────┐    ┌────────────┐
-   │Slack │      │ZeroClaw  │    │Session     │
-   │ API  │      │ Gateway  │    │Storage     │
-   │      │      │          │    │(AES-GCM)   │
-   └──────┘      └──────────┘    └────────────┘
-      │               │
-      │               ▼
-      │          ┌──────────────┐
-      │          │LLM Provider  │
-      │          │(OpenRouter/  │
-      │          │ Anthropic)   │
-      │          └──────────────┘
-      │
-      ▼
-┌─────────────────────────────┐
-│  Slack Workspace            │
-│  (OAuth, Socket Mode, REST) │
-└─────────────────────────────┘
+
+### Internal Module Layout
+
+```mermaid
+flowchart TB
+    subgraph T["crates/tui"]
+        Effects["app/effects.rs"]
+        Actions["app/actions.rs"]
+        Render["app/render.rs"]
+        CacheMod["cache.rs"]
+    end
+
+    subgraph S["crates/slack"]
+        Auth["auth.rs"]
+        Api["api.rs"]
+        Socket["socket.rs"]
+    end
+
+    subgraph A["crates/agent"]
+        Runner["runner.rs"]
+        GatewayClient["gateway.rs"]
+        Commands["commands.rs"]
+    end
+
+    Effects --> Api
+    Effects --> Auth
+    Effects --> Runner
+    Actions --> Commands
+    Actions --> GatewayClient
+    Effects --> CacheMod
+    Socket --> Render
 ```
 
 **Data Flow:**
-1. User types in TUI → sent through Slack API
-2. Slack sends real-time events via Socket Mode
-3. Messages render in TUI with full formatting
-4. `/command` → forwarded to ZeroClaw gateway
-5. ZeroClaw queries LLM, returns result → displayed in chat
+1. `slack-zc` authenticates against Slack and loads the current workspace
+2. Channels are restored from local cache, then refreshed from Slack in the background
+3. Slack history and live events are rendered in the TUI
+4. `/résume`, `/draft`, `/cherche` are converted into prompts and sent to the local ZeroClaw gateway
+5. ZeroClaw returns a response that is shown in the agent panel
+6. If `post_to_slack = true`, the response may also be posted back to Slack
+
+### Startup Flow
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant T as slack-zc
+    participant C as Local Cache
+    participant S as Slack API
+    participant Z as ZeroClaw
+
+    U->>T: cargo run
+    T->>T: load config + session
+    T->>C: load cached channels
+    C-->>T: cached sidebar data
+    T->>S: validate auth / load workspace
+    T->>S: fetch channels incrementally
+    S-->>T: pages of channels
+    T->>Z: connect to running gateway or start one
+    Z-->>T: active or error
+    T-->>U: usable UI immediately
+```
+
+### Agent Command Flow
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant T as slack-zc TUI
+    participant A as Agent layer
+    participant Z as ZeroClaw gateway
+    participant L as Local UI state
+    participant S as Slack API
+
+    U->>T: /draft or /cherche or /résume
+    T->>A: build command prompt
+    A->>Z: POST /webhook { message: prompt }
+    Z-->>A: response
+    A-->>T: parsed agent text
+    T->>L: store response in Recent
+    alt post_to_slack = true
+        T->>S: send message to Slack
+    else dry-run
+        T-->>U: local-only response
+    end
+```
 
 ## Installation
 
 ### Prerequisites
 - Rust 1.70+ ([install here](https://rustup.rs/))
-- A Slack workspace with admin permissions (to create an app)
-- ZeroClaw binary (for AI features, optional but recommended)
-- A CodeX/LLM account (OpenRouter, Anthropic, etc.)
+- A Slack workspace and valid Slack app credentials or tokens
+- ZeroClaw installed locally for AI features
+- A configured ZeroClaw account/provider
 
 ### Build from Source
 
@@ -82,7 +156,7 @@ cargo build --release
 ./target/release/slack-zc
 ```
 
-The binary will be at `./target/release/slack-zc` (~15MB, runs anywhere).
+The binary will be at `./target/release/slack-zc`.
 
 ## Configuration
 
@@ -101,11 +175,7 @@ SLACK_HISTORY_MIN=10                 # Minimum
 SLACK_HISTORY_MAX=200                # Maximum
 ```
 
-On first launch without `.env`:
-1. The app will start the OAuth flow
-2. Authenticate in your browser
-3. Enter Socket Mode token when prompted
-4. Done!
+If the tokens are already present in `.env`, `cargo run` is usually enough to start.
 
 ### Persistent Config
 
@@ -121,14 +191,21 @@ redirect_port = 3000        # Local port for OAuth callback
 
 [zeroclaw]
 binary_path = "zeroclaw"    # Where ZeroClaw binary is installed
-gateway_port = 8888         # ZeroClaw gateway port
+gateway_port = 58080        # Fallback port if ZeroClaw config is unavailable
 auto_start = true           # Auto-start ZeroClaw on app launch
 timeout_seconds = 30        # Timeout for ZeroClaw requests
+post_to_slack = false       # Safe by default: keep agent replies local in the TUI
 
 [llm]
 provider = "openrouter"     # or anthropic, openai, etc.
 api_key = ""                # Your LLM API key
 ```
+
+Notes:
+
+- `slack-zc` tries to reuse your existing ZeroClaw local state from `~/.zeroclaw`
+- if ZeroClaw has its own configured gateway port, `slack-zc` will prefer that over the fallback `gateway_port`
+- `post_to_slack = false` means agent commands are executed, but their results are **not** posted to Slack
 
 ## Getting Started
 
@@ -148,9 +225,9 @@ api_key = ""                # Your LLM API key
 4. Install the app to your workspace
 5. Keep your **Client ID** and **Client Secret** handy (from **App Credentials**)
 
-### Step 2: Install ZeroClaw (AI Features)
+### Step 2: Install ZeroClaw
 
-ZeroClaw is optional but recommended for `/résume`, `/draft`, `/cherche` commands.
+ZeroClaw is required for `/résume`, `/draft`, and `/cherche`.
 
 ```bash
 # Install via Homebrew
@@ -162,7 +239,7 @@ cd zeroclaw
 cargo install --path .
 ```
 
-### Step 3: Configure ZeroClaw (First Time Only)
+### Step 3: Configure ZeroClaw
 
 ```bash
 # Interactive setup wizard (recommended)
@@ -172,18 +249,22 @@ zeroclaw onboard --interactive
 zeroclaw onboard --api-key "sk-or-..." --provider openrouter
 ```
 
-This creates `~/.zeroclaw/config.toml` with your setup.
+This creates the ZeroClaw local state used by `slack-zc`, typically under `~/.zeroclaw/`.
 
 ### Step 4: Launch slack-zc
 
 ```bash
-./target/release/slack-zc
+cargo run
 ```
 
-If using `.env`, it will auto-authenticate. Otherwise:
-1. Follow the OAuth flow in your browser
-2. Paste your Socket Mode token (`xapp-...`)
-3. You're in!
+What happens on startup:
+
+1. Slack auth/session is loaded
+2. cached channels are displayed immediately if available
+3. the full workspace refresh continues in the background
+4. ZeroClaw tries to connect to an existing local gateway or start one automatically
+
+If ZeroClaw cannot connect, the TUI stays usable and the right panel shows the error.
 
 ## Usage
 
@@ -214,31 +295,95 @@ If using `.env`, it will auto-authenticate. Otherwise:
 
 ### AI Commands
 
-Type these in any message input (ZeroClaw must be running):
+Type these in the message input after pressing `i` to focus it:
 
-- `/résume` - Summarize the conversation
-- `/draft This is what I want to say` - Get help writing a message
-- `/cherche keyword` - Search and analyze content
+- `/résume` - summarize recent discussion in the active channel
+- `/draft <intent>` - generate a Slack-ready draft reply
+- `/cherche <query>` - analyze the recent channel context around a query
 
-Example:
-```
-You: /résume last 10 messages about the project
-Claude: "Here's what was discussed..."
+By default, these commands run in **dry-run** mode:
+
+- the request is sent to ZeroClaw
+- the response is shown in the **ZEROCLAW** panel under `Recent`
+- nothing is posted to Slack
+
+This is intentional and is the recommended mode for testing.
+
+## Testing
+
+### Safe Test Procedure
+
+Run:
+
+```bash
+cargo test -q
+cargo run
 ```
 
-### Example Workflow
+Inside the TUI:
 
+1. Check that the agent panel shows `Post to Slack: dry-run`
+2. Press `i`
+3. Run `/draft répondre poliment que je regarde demain`
+4. Press `Enter`, then `Enter` again to confirm
+5. Verify that the result appears under `Recent`
+6. Repeat with `/cherche test intégration`
+7. Repeat with `/résume`
+
+Expected result:
+
+- ZeroClaw status is `active`
+- commands complete successfully
+- no message is posted to Slack while `dry-run` is enabled
+
+### Enabling Real Slack Posting Later
+
+Do this only when you are ready to test in a dedicated Slack channel:
+
+```toml
+[zeroclaw]
+post_to_slack = true
 ```
-1. Launch app → authenticate with Slack
-2. Ctrl+K → search "engineering" → Enter
-3. Read recent messages
-4. Click input bar at bottom
-5. Type: "Hey team, working on the deploy"
-6. Enter to send
-7. Right-click a message → React
-8. Type: /draft "but we need to handle X" → Enter (Claude helps polish it)
-9. Press t on your message to see replies
+
+Keep `post_to_slack = false` for normal development and late-night testing.
+
+## Troubleshooting
+
+### ZeroClaw shows inactive or error
+
+Check:
+
+- `zeroclaw --version`
+- `zeroclaw onboard`
+- `zeroclaw gateway --port <port>`
+
+`slack-zc` prefers reusing existing ZeroClaw local credentials and gateway configuration.
+
+### Large workspace startup is slow
+
+This is expected on very large Slack workspaces. The current behavior is:
+
+- cached channels appear immediately if available
+- fresh channels continue loading in the background
+- Slack may rate-limit some pages with `429`, but the UI remains usable
+
+### Where is the channel cache stored?
+
+`slack-zc` stores per-workspace channel cache files under the OS cache directory for the app, typically something like:
+
+```bash
+~/.cache/slack-zc/
 ```
+
+### Why does `dry-run` exist?
+
+Because the agent commands can post real Slack messages when `post_to_slack = true`.
+
+`dry-run` keeps the integration testable without:
+
+- pinging coworkers by mistake
+- posting late at night
+- mixing agent validation with real workspace traffic
 
 ## Development
 
@@ -274,12 +419,12 @@ cargo clippy
 
 ### How It Works
 
-1. **TUI Layer** (Ratatui) - Renders panels, handles keyboard/mouse input
-2. **Slack Layer** - OAuth flow, Socket Mode listener, REST API calls
-3. **Agent Layer** - Launches ZeroClaw gateway, forwards commands via HTTP
-4. **Session Layer** - Encrypts and stores tokens locally
+1. **TUI Layer** renders panels, handles input, and stays responsive during async loading
+2. **Slack Layer** handles auth, workspace discovery, history, and live events
+3. **Agent Layer** talks to the local ZeroClaw gateway through HTTP
+4. **Cache/Session Layer** restores local state quickly between launches
 
-The app runs everything in a single async Tokio runtime for low latency.
+The app runs everything in a single Tokio runtime and avoids blocking startup on full workspace pagination.
 
 ## Troubleshooting
 
@@ -298,9 +443,10 @@ The app runs everything in a single async Tokio runtime for low latency.
 
 **ZeroClaw not working?**
 - Check ZeroClaw is installed: `zeroclaw --version`
-- Ensure your LLM API key is configured: `zeroclaw auth status`
-- Check gateway is running on correct port (default 8888)
-- View logs: `~/.zeroclaw/logs/`
+- Run onboarding again if needed: `zeroclaw onboard`
+- Check the gateway is reachable on the configured local port
+- Confirm the TUI shows `dry-run` or `enabled` as expected
+- Inspect `slack-zc.log`
 
 **Slow startup?**
 - First launch loads all channels — this is normal
@@ -350,4 +496,3 @@ Want to chat? DM me on Slack or reach out on GitHub.
 ---
 
 Made with ❤️ for people who prefer terminal tools. Works great on Linux, macOS, and even Windows via WSL.
-

@@ -80,6 +80,31 @@ impl App {
         tx.send(event)
             .map_err(|e| anyhow::anyhow!("failed to send app event: {}", e))
     }
+
+    pub(super) fn current_channel_messages(&self) -> Option<&VecDeque<Message>> {
+        let selected = self.selected_channel?;
+        let channel = self.channels.get(selected)?;
+        self.messages.get(&channel.id)
+    }
+
+    pub(super) fn current_message_index(&self) -> Option<usize> {
+        let messages = self.current_channel_messages()?;
+        if messages.is_empty() {
+            return None;
+        }
+
+        Some(
+            messages
+                .len()
+                .saturating_sub(1 + self.scroll_offset.min(messages.len().saturating_sub(1))),
+        )
+    }
+
+    pub(super) fn max_scroll_offset(&self) -> usize {
+        self.current_channel_messages()
+            .map(|messages| messages.len().saturating_sub(1))
+            .unwrap_or(0)
+    }
 }
 
 #[cfg(test)]

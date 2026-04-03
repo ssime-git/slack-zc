@@ -254,7 +254,7 @@ This creates the ZeroClaw local state used by `slack-zc`, typically under `~/.ze
 ### Step 4: Launch slack-zc
 
 ```bash
-cargo run
+make
 ```
 
 What happens on startup:
@@ -316,8 +316,8 @@ This is intentional and is the recommended mode for testing.
 Run:
 
 ```bash
-cargo test -q
-cargo run
+make test
+make
 ```
 
 Inside the TUI:
@@ -353,6 +353,7 @@ Keep `post_to_slack = false` for normal development and late-night testing.
 
 Check:
 
+- `make` to verify `zeroclaw` is available before launch
 - `zeroclaw --version`
 - `zeroclaw onboard`
 - `zeroclaw gateway --port <port>`

@@ -1,0 +1,522 @@
+[2m2026-04-03T19:49:55.825679Z[0m [32m INFO[0m [2mslack_zc[0m[2m:[0m Starting slack-zc
+[2m2026-04-03T19:49:55.828364Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Starting app initialization...
+[2m2026-04-03T19:49:55.828720Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Session loaded successfully
+[2m2026-04-03T19:49:55.828734Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Initializing with 1 workspace(s)
+[2m2026-04-03T19:49:55.828744Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace 0: Liora (team_id: T1R3V0UE4)
+[2m2026-04-03T19:49:55.829092Z[0m [34mDEBUG[0m [2mreqwest::connect[0m[2m:[0m starting new connection: https://slack.com/
+[2m2026-04-03T19:49:55.844023Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::connect::http[0m[2m:[0m connecting to 18.169.61.189:443
+[2m2026-04-03T19:49:55.858269Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::connect::http[0m[2m:[0m connected to 18.169.61.189:443
+[2m2026-04-03T19:49:55.998476Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:49:55.999174Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Auth test passed for Liora
+[2m2026-04-03T19:49:56.000411Z[0m [34mDEBUG[0m [2mreqwest::connect[0m[2m:[0m starting new connection: https://slack.com/
+[2m2026-04-03T19:49:56.017967Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::connect::http[0m[2m:[0m connecting to 18.169.61.189:443
+[2m2026-04-03T19:49:56.026371Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 3366 cached channels for workspace Liora
+[2m2026-04-03T19:49:56.026704Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loading channels for Liora in background...
+[2m2026-04-03T19:49:56.026958Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:49:56.029363Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Found ZeroClaw bearer token (source: session)
+[2m2026-04-03T19:49:56.032742Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::connect::http[0m[2m:[0m connected to 18.169.61.189:443
+[2m2026-04-03T19:49:56.039232Z[0m [32m INFO[0m [2mslack_zc_agent::runner[0m[2m:[0m Attempting to connect to existing ZeroClaw gateway on port 42617 with bearer
+[2m2026-04-03T19:49:56.039563Z[0m [34mDEBUG[0m [2mreqwest::connect[0m[2m:[0m starting new connection: http://127.0.0.1:42617/
+[2m2026-04-03T19:49:56.039603Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::connect::http[0m[2m:[0m connecting to 127.0.0.1:42617
+[2m2026-04-03T19:49:56.040779Z[0m [33m WARN[0m [2mslack_zc::app::effects[0m[2m:[0m Existing gateway connection with bearer failed (error sending request for url (http://127.0.0.1:42617/api/status)), attempting to start a new gateway
+[2m2026-04-03T19:49:56.040806Z[0m [32m INFO[0m [2mslack_zc_agent::runner[0m[2m:[0m Starting ZeroClaw gateway with existing bearer
+[2m2026-04-03T19:49:56.041337Z[0m [34mDEBUG[0m [2mreqwest::connect[0m[2m:[0m starting new connection: http://127.0.0.1:42617/
+[2m2026-04-03T19:49:56.041406Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::connect::http[0m[2m:[0m connecting to 127.0.0.1:42617
+[2m2026-04-03T19:49:56.043521Z[0m [32m INFO[0m [2mslack_zc_agent::runner[0m[2m:[0m Adjusting embedded ZeroClaw provider from user config to openai-codex
+[2m2026-04-03T19:49:56.044012Z[0m [34mDEBUG[0m [2mreqwest::connect[0m[2m:[0m starting new connection: http://127.0.0.1:42617/
+[2m2026-04-03T19:49:56.044043Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::connect::http[0m[2m:[0m connecting to 127.0.0.1:42617
+[2m2026-04-03T19:49:56.044845Z[0m [34mDEBUG[0m [2mslack_zc_agent::gateway[0m[2m:[0m Health check failed: error sending request for url (http://127.0.0.1:42617/health)
+[2m2026-04-03T19:49:56.044883Z[0m [32m INFO[0m [2mslack_zc_agent::runner[0m[2m:[0m Starting embedded ZeroClaw gateway on port 42617 with pairing disabled
+[2m2026-04-03T19:49:56.045721Z[0m [34mDEBUG[0m [2mreqwest::connect[0m[2m:[0m starting new connection: http://127.0.0.1:42617/
+[2m2026-04-03T19:49:56.045759Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::connect::http[0m[2m:[0m connecting to 127.0.0.1:42617
+[2m2026-04-03T19:49:56.050376Z[0m [34mDEBUG[0m [2mslack_zc_agent::gateway[0m[2m:[0m Health check failed: error sending request for url (http://127.0.0.1:42617/health)
+[2m2026-04-03T19:49:56.155441Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:49:56.155742Z[0m [32m INFO[0m [2mslack_zc_slack::socket[0m[2m:[0m Connecting to Socket Mode at wss://wss-primary.slack.com/link/
+[2m2026-04-03T19:49:56.259843Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:49:56.266431Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 97 regular channels for workspace Liora (total: 97)
+[2m2026-04-03T19:49:56.266832Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:49:56.266948Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 97 entries (done: false)
+[2m2026-04-03T19:49:56.268260Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 97 entries
+[2m2026-04-03T19:49:56.303317Z[0m [34mDEBUG[0m [2mreqwest::connect[0m[2m:[0m starting new connection: http://127.0.0.1:42617/
+[2m2026-04-03T19:49:56.303514Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::connect::http[0m[2m:[0m connecting to 127.0.0.1:42617
+[2m2026-04-03T19:49:56.305775Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::connect::http[0m[2m:[0m connected to 127.0.0.1:42617
+[2m2026-04-03T19:49:56.308177Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("http", 127.0.0.1:42617)
+[2m2026-04-03T19:49:56.308557Z[0m [32m INFO[0m [2mslack_zc_agent::runner[0m[2m:[0m Embedded ZeroClaw gateway started
+[2m2026-04-03T19:49:56.566595Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:49:56.576122Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 90 regular channels for workspace Liora (total: 187)
+[2m2026-04-03T19:49:56.576653Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:49:56.603011Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 187 entries (done: false)
+[2m2026-04-03T19:49:56.607091Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 187 entries
+[2m2026-04-03T19:49:56.879327Z[0m [34mDEBUG[0m [2mtungstenite::handshake::client[0m[2m:[0m Client handshake done.
+[2m2026-04-03T19:49:56.879404Z[0m [32m INFO[0m [2mslack_zc_slack::socket[0m[2m:[0m WebSocket connected
+[2m2026-04-03T19:49:56.880643Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Socket Mode connected
+[2m2026-04-03T19:49:56.880827Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:49:56.883282Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 52 regular channels for workspace Liora (total: 239)
+[2m2026-04-03T19:49:56.883519Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:49:56.933754Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 239 entries (done: false)
+[2m2026-04-03T19:49:56.935354Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 239 entries
+[2m2026-04-03T19:49:57.027313Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:49:57.030720Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 34 regular channels for workspace Liora (total: 273)
+[2m2026-04-03T19:49:57.031059Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:49:57.045959Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 273 entries (done: false)
+[2m2026-04-03T19:49:57.051113Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 273 entries
+[2m2026-04-03T19:49:57.062692Z[0m [34mDEBUG[0m [2mslack_zc_slack::socket[0m[2m:[0m Received websocket frame (167 bytes)
+[2m2026-04-03T19:49:57.062797Z[0m [32m INFO[0m [2mslack_zc_slack::socket[0m[2m:[0m Socket mode handshake successful
+[2m2026-04-03T19:49:57.176950Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:49:57.180157Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 33 regular channels for workspace Liora (total: 306)
+[2m2026-04-03T19:49:57.180542Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:49:57.222248Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 306 entries (done: false)
+[2m2026-04-03T19:49:57.226430Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 306 entries
+[2m2026-04-03T19:49:57.407258Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:49:57.408850Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 23 regular channels for workspace Liora (total: 329)
+[2m2026-04-03T19:49:57.409236Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:49:57.459647Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 329 entries (done: false)
+[2m2026-04-03T19:49:57.465516Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 329 entries
+[2m2026-04-03T19:49:57.711886Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:49:57.716969Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 35 regular channels for workspace Liora (total: 364)
+[2m2026-04-03T19:49:57.717566Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:49:57.750473Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 364 entries (done: false)
+[2m2026-04-03T19:49:57.755356Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 364 entries
+[2m2026-04-03T19:49:57.942068Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:49:57.944355Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 31 regular channels for workspace Liora (total: 395)
+[2m2026-04-03T19:49:57.944712Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:49:57.985001Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 395 entries (done: false)
+[2m2026-04-03T19:49:57.991177Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 395 entries
+[2m2026-04-03T19:49:58.167516Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:49:58.169228Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 14 regular channels for workspace Liora (total: 409)
+[2m2026-04-03T19:49:58.169584Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:49:58.218814Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 409 entries (done: false)
+[2m2026-04-03T19:49:58.225255Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 409 entries
+[2m2026-04-03T19:49:58.392205Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:49:58.394935Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 27 regular channels for workspace Liora (total: 436)
+[2m2026-04-03T19:49:58.395372Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:49:58.449872Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 436 entries (done: false)
+[2m2026-04-03T19:49:58.453772Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 436 entries
+[2m2026-04-03T19:49:58.629141Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:49:58.631773Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 17 regular channels for workspace Liora (total: 453)
+[2m2026-04-03T19:49:58.632179Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:49:58.683425Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 453 entries (done: false)
+[2m2026-04-03T19:49:58.690491Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 453 entries
+[2m2026-04-03T19:49:58.855477Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:49:58.856746Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 26 regular channels for workspace Liora (total: 479)
+[2m2026-04-03T19:49:58.856964Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:49:58.857228Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 479 entries (done: false)
+[2m2026-04-03T19:49:58.860426Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 479 entries
+[2m2026-04-03T19:49:59.027764Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:49:59.030450Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 11 regular channels for workspace Liora (total: 490)
+[2m2026-04-03T19:49:59.030968Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 490 entries (done: false)
+[2m2026-04-03T19:49:59.031076Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:49:59.042690Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 490 entries
+[2m2026-04-03T19:49:59.255148Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:49:59.255872Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 21 regular channels for workspace Liora (total: 511)
+[2m2026-04-03T19:49:59.256151Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:49:59.270089Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 511 entries (done: false)
+[2m2026-04-03T19:49:59.272947Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 511 entries
+[2m2026-04-03T19:49:59.404339Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:49:59.405333Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 24 regular channels for workspace Liora (total: 535)
+[2m2026-04-03T19:49:59.405594Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:49:59.432343Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 535 entries (done: false)
+[2m2026-04-03T19:49:59.435260Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 535 entries
+[2m2026-04-03T19:49:59.628449Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:49:59.632122Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 32 regular channels for workspace Liora (total: 567)
+[2m2026-04-03T19:49:59.632541Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:49:59.662982Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 567 entries (done: false)
+[2m2026-04-03T19:49:59.670434Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 567 entries
+[2m2026-04-03T19:49:59.781470Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:49:59.783910Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 29 regular channels for workspace Liora (total: 596)
+[2m2026-04-03T19:49:59.784317Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:49:59.785220Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 596 entries (done: false)
+[2m2026-04-03T19:49:59.791276Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 596 entries
+[2m2026-04-03T19:50:00.006701Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:00.009745Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 32 regular channels for workspace Liora (total: 628)
+[2m2026-04-03T19:50:00.010106Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:00.022853Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 628 entries (done: false)
+[2m2026-04-03T19:50:00.027885Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 628 entries
+[2m2026-04-03T19:50:00.249528Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:00.252260Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 20 regular channels for workspace Liora (total: 648)
+[2m2026-04-03T19:50:00.252718Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:00.257675Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 648 entries (done: false)
+[2m2026-04-03T19:50:00.265146Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 648 entries
+[2m2026-04-03T19:50:00.398879Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:00.401906Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 28 regular channels for workspace Liora (total: 676)
+[2m2026-04-03T19:50:00.402278Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:00.425595Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 676 entries (done: false)
+[2m2026-04-03T19:50:00.435133Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 676 entries
+[2m2026-04-03T19:50:00.567538Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:00.570924Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 34 regular channels for workspace Liora (total: 710)
+[2m2026-04-03T19:50:00.571465Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:00.611064Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 710 entries (done: false)
+[2m2026-04-03T19:50:00.619076Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 710 entries
+[2m2026-04-03T19:50:00.904848Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:00.908585Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 32 regular channels for workspace Liora (total: 742)
+[2m2026-04-03T19:50:00.909091Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:00.910060Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 742 entries (done: false)
+[2m2026-04-03T19:50:00.918330Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 742 entries
+[2m2026-04-03T19:50:01.059364Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:01.064222Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 44 regular channels for workspace Liora (total: 786)
+[2m2026-04-03T19:50:01.064802Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:01.091025Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 786 entries (done: false)
+[2m2026-04-03T19:50:01.099937Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 786 entries
+[2m2026-04-03T19:50:01.210568Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:01.215365Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 44 regular channels for workspace Liora (total: 830)
+[2m2026-04-03T19:50:01.215882Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:01.220798Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 830 entries (done: false)
+[2m2026-04-03T19:50:01.230535Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 830 entries
+[2m2026-04-03T19:50:01.536819Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:01.540467Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 43 regular channels for workspace Liora (total: 873)
+[2m2026-04-03T19:50:01.540819Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:01.544236Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 873 entries (done: false)
+[2m2026-04-03T19:50:01.550334Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 873 entries
+[2m2026-04-03T19:50:02.019377Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:02.021536Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 38 regular channels for workspace Liora (total: 911)
+[2m2026-04-03T19:50:02.021880Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:02.039193Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 911 entries (done: false)
+[2m2026-04-03T19:50:02.047540Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 911 entries
+[2m2026-04-03T19:50:02.376910Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:02.379897Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 38 regular channels for workspace Liora (total: 949)
+[2m2026-04-03T19:50:02.380177Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:02.398187Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 949 entries (done: false)
+[2m2026-04-03T19:50:02.417160Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 949 entries
+[2m2026-04-03T19:50:02.689524Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:02.691463Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 42 regular channels for workspace Liora (total: 991)
+[2m2026-04-03T19:50:02.691708Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:02.704486Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 991 entries (done: false)
+[2m2026-04-03T19:50:02.711722Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 991 entries
+[2m2026-04-03T19:50:02.838889Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:02.841037Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 31 regular channels for workspace Liora (total: 1022)
+[2m2026-04-03T19:50:02.841234Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:02.879717Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 1022 entries (done: false)
+[2m2026-04-03T19:50:02.888498Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 1022 entries
+[2m2026-04-03T19:50:03.064809Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:03.067774Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 40 regular channels for workspace Liora (total: 1062)
+[2m2026-04-03T19:50:03.068062Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:03.117189Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 1062 entries (done: false)
+[2m2026-04-03T19:50:03.129092Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 1062 entries
+[2m2026-04-03T19:50:03.251155Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:03.253665Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 39 regular channels for workspace Liora (total: 1101)
+[2m2026-04-03T19:50:03.254134Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:03.302922Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 1101 entries (done: false)
+[2m2026-04-03T19:50:03.314151Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 1101 entries
+[2m2026-04-03T19:50:03.401615Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:03.405255Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 37 regular channels for workspace Liora (total: 1138)
+[2m2026-04-03T19:50:03.405849Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:03.431244Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 1138 entries (done: false)
+[2m2026-04-03T19:50:03.439958Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 1138 entries
+[2m2026-04-03T19:50:03.706385Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:03.711106Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 42 regular channels for workspace Liora (total: 1180)
+[2m2026-04-03T19:50:03.711879Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:03.724167Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 1180 entries (done: false)
+[2m2026-04-03T19:50:03.732226Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 1180 entries
+[2m2026-04-03T19:50:03.862110Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:03.865688Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 27 regular channels for workspace Liora (total: 1207)
+[2m2026-04-03T19:50:03.866230Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:03.901682Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 1207 entries (done: false)
+[2m2026-04-03T19:50:03.914072Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 1207 entries
+[2m2026-04-03T19:50:04.018361Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:04.020837Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 22 regular channels for workspace Liora (total: 1229)
+[2m2026-04-03T19:50:04.021318Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:04.034847Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 1229 entries (done: false)
+[2m2026-04-03T19:50:04.046457Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 1229 entries
+[2m2026-04-03T19:50:04.250091Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:04.251274Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 26 regular channels for workspace Liora (total: 1255)
+[2m2026-04-03T19:50:04.251496Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:04.279870Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 1255 entries (done: false)
+[2m2026-04-03T19:50:04.285883Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 1255 entries
+[2m2026-04-03T19:50:04.570595Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:04.574485Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 36 regular channels for workspace Liora (total: 1291)
+[2m2026-04-03T19:50:04.574974Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:04.601883Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 1291 entries (done: false)
+[2m2026-04-03T19:50:04.614935Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 1291 entries
+[2m2026-04-03T19:50:04.740810Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:04.744595Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 35 regular channels for workspace Liora (total: 1326)
+[2m2026-04-03T19:50:04.745056Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:04.787686Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 1326 entries (done: false)
+[2m2026-04-03T19:50:04.802073Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 1326 entries
+[2m2026-04-03T19:50:04.983235Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:04.984072Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 28 regular channels for workspace Liora (total: 1354)
+[2m2026-04-03T19:50:04.984506Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:05.041568Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 1354 entries (done: false)
+[2m2026-04-03T19:50:05.059683Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 1354 entries
+[2m2026-04-03T19:50:05.133304Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:05.135745Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 29 regular channels for workspace Liora (total: 1383)
+[2m2026-04-03T19:50:05.136133Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:05.188701Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 1383 entries (done: false)
+[2m2026-04-03T19:50:05.200813Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 1383 entries
+[2m2026-04-03T19:50:05.282496Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:05.284018Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 24 regular channels for workspace Liora (total: 1407)
+[2m2026-04-03T19:50:05.284250Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:05.335339Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 1407 entries (done: false)
+[2m2026-04-03T19:50:05.350261Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 1407 entries
+[2m2026-04-03T19:50:05.431225Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:05.435538Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 36 regular channels for workspace Liora (total: 1443)
+[2m2026-04-03T19:50:05.435893Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:05.463798Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 1443 entries (done: false)
+[2m2026-04-03T19:50:05.476179Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 1443 entries
+[2m2026-04-03T19:50:05.658982Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:05.661075Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 36 regular channels for workspace Liora (total: 1479)
+[2m2026-04-03T19:50:05.661425Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:05.706279Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 1479 entries (done: false)
+[2m2026-04-03T19:50:05.721673Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 1479 entries
+[2m2026-04-03T19:50:05.895588Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 21 regular channels for workspace Liora (total: 1500)
+[2m2026-04-03T19:50:05.896355Z[0m [34mDEBUG[0m [2mreqwest::connect[0m[2m:[0m starting new connection: https://slack.com/
+[2m2026-04-03T19:50:05.896565Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:05.915485Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::connect::http[0m[2m:[0m connecting to 18.169.120.191:443
+[2m2026-04-03T19:50:05.929974Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::connect::http[0m[2m:[0m connected to 18.169.120.191:443
+[2m2026-04-03T19:50:05.946611Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:05.950517Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 1500 entries (done: false)
+[2m2026-04-03T19:50:05.967221Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 1500 entries
+[2m2026-04-03T19:50:06.120825Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:06.123761Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 23 regular channels for workspace Liora (total: 1523)
+[2m2026-04-03T19:50:06.124274Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:06.146066Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 1523 entries (done: false)
+[2m2026-04-03T19:50:06.166201Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 1523 entries
+[2m2026-04-03T19:50:06.250198Z[0m [32m INFO[0m [2mslack_zc::app::actions[0m[2m:[0m Selecting channel cursus_mlops (C03BKJVADHT)
+[2m2026-04-03T19:50:06.252003Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:06.252685Z[0m [34mDEBUG[0m [2mreqwest::connect[0m[2m:[0m starting new connection: https://slack.com/
+[2m2026-04-03T19:50:06.270443Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::connect::http[0m[2m:[0m connecting to 18.169.61.189:443
+[2m2026-04-03T19:50:06.284878Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::connect::http[0m[2m:[0m connected to 18.169.61.189:443
+[2m2026-04-03T19:50:06.346342Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:06.348579Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 27 regular channels for workspace Liora (total: 1550)
+[2m2026-04-03T19:50:06.348895Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:06.370704Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 1550 entries (done: false)
+[2m2026-04-03T19:50:06.386100Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 1550 entries
+[2m2026-04-03T19:50:06.573037Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:06.575522Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 29 regular channels for workspace Liora (total: 1579)
+[2m2026-04-03T19:50:06.575876Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:06.590002Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:06.594614Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:06.623963Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 1579 entries (done: false)
+[2m2026-04-03T19:50:06.640041Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 1579 entries
+[2m2026-04-03T19:50:06.744422Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:06.748930Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 27 regular channels for workspace Liora (total: 1606)
+[2m2026-04-03T19:50:06.749665Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:06.756641Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 1606 entries (done: false)
+[2m2026-04-03T19:50:06.770329Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 1606 entries
+[2m2026-04-03T19:50:06.771151Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:06.982233Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:06.986629Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 42 regular channels for workspace Liora (total: 1648)
+[2m2026-04-03T19:50:06.987039Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:07.008122Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 1648 entries (done: false)
+[2m2026-04-03T19:50:07.024210Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 1648 entries
+[2m2026-04-03T19:50:07.199495Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:07.298052Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:07.303194Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 38 regular channels for workspace Liora (total: 1686)
+[2m2026-04-03T19:50:07.303669Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:07.311957Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 1686 entries (done: false)
+[2m2026-04-03T19:50:07.327272Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 1686 entries
+[2m2026-04-03T19:50:07.599524Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:07.603409Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 45 regular channels for workspace Liora (total: 1731)
+[2m2026-04-03T19:50:07.603833Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:07.648866Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 1731 entries (done: false)
+[2m2026-04-03T19:50:07.667834Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 1731 entries
+[2m2026-04-03T19:50:07.755572Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:07.758515Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 27 regular channels for workspace Liora (total: 1758)
+[2m2026-04-03T19:50:07.758974Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:07.796127Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 1758 entries (done: false)
+[2m2026-04-03T19:50:07.813443Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 1758 entries
+[2m2026-04-03T19:50:07.985929Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:07.987893Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 21 regular channels for workspace Liora (total: 1779)
+[2m2026-04-03T19:50:07.988311Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:08.001224Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 1779 entries (done: false)
+[2m2026-04-03T19:50:08.017930Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 1779 entries
+[2m2026-04-03T19:50:08.159501Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:08.161050Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 17 regular channels for workspace Liora (total: 1796)
+[2m2026-04-03T19:50:08.161312Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:08.208350Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 1796 entries (done: false)
+[2m2026-04-03T19:50:08.225897Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 1796 entries
+[2m2026-04-03T19:50:08.308225Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:08.309558Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 22 regular channels for workspace Liora (total: 1818)
+[2m2026-04-03T19:50:08.309793Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:08.354470Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 1818 entries (done: false)
+[2m2026-04-03T19:50:08.371488Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 1818 entries
+[2m2026-04-03T19:50:08.508673Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:08.511010Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 27 regular channels for workspace Liora (total: 1845)
+[2m2026-04-03T19:50:08.511411Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:08.565530Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 1845 entries (done: false)
+[2m2026-04-03T19:50:08.574061Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 1845 entries
+[2m2026-04-03T19:50:08.664402Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:08.667692Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 18 regular channels for workspace Liora (total: 1863)
+[2m2026-04-03T19:50:08.668342Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:08.697933Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 1863 entries (done: false)
+[2m2026-04-03T19:50:08.715826Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 1863 entries
+[2m2026-04-03T19:50:08.977323Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:08.980744Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 35 regular channels for workspace Liora (total: 1898)
+[2m2026-04-03T19:50:08.981099Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:09.036556Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 1898 entries (done: false)
+[2m2026-04-03T19:50:09.050396Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 1898 entries
+[2m2026-04-03T19:50:09.136277Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:09.138867Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 34 regular channels for workspace Liora (total: 1932)
+[2m2026-04-03T19:50:09.139209Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:09.185613Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 1932 entries (done: false)
+[2m2026-04-03T19:50:09.202563Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 1932 entries
+[2m2026-04-03T19:50:09.434133Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:09.436281Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 38 regular channels for workspace Liora (total: 1970)
+[2m2026-04-03T19:50:09.436488Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:09.446294Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 1970 entries (done: false)
+[2m2026-04-03T19:50:09.458027Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 1970 entries
+[2m2026-04-03T19:50:09.655623Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:09.657694Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 23 regular channels for workspace Liora (total: 1993)
+[2m2026-04-03T19:50:09.658039Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:09.712531Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 1993 entries (done: false)
+[2m2026-04-03T19:50:09.736169Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 1993 entries
+[2m2026-04-03T19:50:09.899962Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:09.903605Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 28 regular channels for workspace Liora (total: 2021)
+[2m2026-04-03T19:50:09.904157Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:09.929584Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 2021 entries (done: false)
+[2m2026-04-03T19:50:09.949155Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 2021 entries
+[2m2026-04-03T19:50:10.214234Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:10.219088Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 37 regular channels for workspace Liora (total: 2058)
+[2m2026-04-03T19:50:10.219471Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:10.282087Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 2058 entries (done: false)
+[2m2026-04-03T19:50:10.302870Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 2058 entries
+[2m2026-04-03T19:50:10.492844Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:10.494992Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 18 regular channels for workspace Liora (total: 2076)
+[2m2026-04-03T19:50:10.495502Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:10.495969Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 2076 entries (done: false)
+[2m2026-04-03T19:50:10.513162Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 2076 entries
+[2m2026-04-03T19:50:10.738844Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:10.742001Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 30 regular channels for workspace Liora (total: 2106)
+[2m2026-04-03T19:50:10.742479Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:10.773565Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 2106 entries (done: false)
+[2m2026-04-03T19:50:10.791397Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 2106 entries
+[2m2026-04-03T19:50:10.888551Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:10.892627Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 46 regular channels for workspace Liora (total: 2152)
+[2m2026-04-03T19:50:10.893072Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:10.917112Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 2152 entries (done: false)
+[2m2026-04-03T19:50:10.927337Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 2152 entries
+[2m2026-04-03T19:50:11.173465Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:11.177330Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 33 regular channels for workspace Liora (total: 2185)
+[2m2026-04-03T19:50:11.177868Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:11.188472Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 2185 entries (done: false)
+[2m2026-04-03T19:50:11.209571Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 2185 entries
+[2m2026-04-03T19:50:11.495200Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:11.500441Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 38 regular channels for workspace Liora (total: 2223)
+[2m2026-04-03T19:50:11.501136Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:11.565058Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 2223 entries (done: false)
+[2m2026-04-03T19:50:11.582200Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 2223 entries
+[2m2026-04-03T19:50:11.740556Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:11.743848Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 34 regular channels for workspace Liora (total: 2257)
+[2m2026-04-03T19:50:11.744260Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:11.776852Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 2257 entries (done: false)
+[2m2026-04-03T19:50:11.795475Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 2257 entries
+[2m2026-04-03T19:50:12.071683Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:12.076725Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 45 regular channels for workspace Liora (total: 2302)
+[2m2026-04-03T19:50:12.077175Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:12.096552Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 2302 entries (done: false)
+[2m2026-04-03T19:50:12.107552Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 2302 entries
+[2m2026-04-03T19:50:12.225926Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:12.227884Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 33 regular channels for workspace Liora (total: 2335)
+[2m2026-04-03T19:50:12.228156Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:12.274947Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 2335 entries (done: false)
+[2m2026-04-03T19:50:12.296415Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 2335 entries
+[2m2026-04-03T19:50:12.377104Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:12.379433Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 40 regular channels for workspace Liora (total: 2375)
+[2m2026-04-03T19:50:12.379639Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:12.417947Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 2375 entries (done: false)
+[2m2026-04-03T19:50:12.433714Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 2375 entries
+[2m2026-04-03T19:50:12.686106Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:12.688532Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 34 regular channels for workspace Liora (total: 2409)
+[2m2026-04-03T19:50:12.688848Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:12.741067Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 2409 entries (done: false)
+[2m2026-04-03T19:50:12.764020Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 2409 entries
+[2m2026-04-03T19:50:12.984172Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:12.988239Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 41 regular channels for workspace Liora (total: 2450)
+[2m2026-04-03T19:50:12.988853Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:13.029846Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 2450 entries (done: false)
+[2m2026-04-03T19:50:13.046828Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 2450 entries
+[2m2026-04-03T19:50:13.302378Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:13.307036Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 42 regular channels for workspace Liora (total: 2492)
+[2m2026-04-03T19:50:13.307482Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:13.308686Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 2492 entries (done: false)
+[2m2026-04-03T19:50:13.323043Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 2492 entries
+[2m2026-04-03T19:50:13.586019Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:13.593115Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 43 regular channels for workspace Liora (total: 2535)
+[2m2026-04-03T19:50:13.594016Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:13.610315Z[0m [32m INFO[0m [2mslack_zc::app::actions[0m[2m:[0m Selecting channel mlops_squad (C064RPRD1DX)
+[2m2026-04-03T19:50:13.610867Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 2535 entries (done: false)
+[2m2026-04-03T19:50:13.611116Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:13.611200Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:13.623302Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 2535 entries
+[2m2026-04-03T19:50:13.915444Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:13.919684Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 62 regular channels for workspace Liora (total: 2597)
+[2m2026-04-03T19:50:13.920069Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:13.937538Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 2597 entries (done: false)
+[2m2026-04-03T19:50:13.953529Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 2597 entries
+[2m2026-04-03T19:50:14.082410Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:14.102209Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:14.142326Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:14.146207Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 49 regular channels for workspace Liora (total: 2646)
+[2m2026-04-03T19:50:14.146567Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:14.198723Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 2646 entries (done: false)
+[2m2026-04-03T19:50:14.217888Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 2646 entries
+[2m2026-04-03T19:50:14.418125Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:14.420714Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 32 regular channels for workspace Liora (total: 2678)
+[2m2026-04-03T19:50:14.421087Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:14.467835Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 2678 entries (done: false)
+[2m2026-04-03T19:50:14.485624Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 2678 entries
+[2m2026-04-03T19:50:14.650130Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:14.656864Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 55 regular channels for workspace Liora (total: 2733)
+[2m2026-04-03T19:50:14.657314Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:14.679040Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 2733 entries (done: false)
+[2m2026-04-03T19:50:14.704034Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 2733 entries
+[2m2026-04-03T19:50:14.882521Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:14.887435Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 43 regular channels for workspace Liora (total: 2776)
+[2m2026-04-03T19:50:14.887893Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:14.897519Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 2776 entries (done: false)
+[2m2026-04-03T19:50:14.917496Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 2776 entries
+[2m2026-04-03T19:50:15.193047Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:15.195509Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 38 regular channels for workspace Liora (total: 2814)
+[2m2026-04-03T19:50:15.195856Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:15.239854Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 2814 entries (done: false)
+[2m2026-04-03T19:50:15.262590Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 2814 entries
+[2m2026-04-03T19:50:15.403605Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:15.403770Z[0m [34mDEBUG[0m [2mslack_zc_slack::api[0m[2m:[0m Retrying after error: 429 retry_after:30 [3mattempt[0m[2m=[0m0 [3mdelay[0m[2m=[0m30s
+[2m2026-04-03T19:50:45.405701Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:45.712421Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:45.719328Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 60 regular channels for workspace Liora (total: 2874)
+[2m2026-04-03T19:50:45.719772Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:45.740512Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 2874 entries (done: false)
+[2m2026-04-03T19:50:45.757185Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 2874 entries
+[2m2026-04-03T19:50:46.019040Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:46.022476Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 42 regular channels for workspace Liora (total: 2916)
+[2m2026-04-03T19:50:46.022953Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:46.068772Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 2916 entries (done: false)
+[2m2026-04-03T19:50:46.090575Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 2916 entries
+[2m2026-04-03T19:50:46.318355Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:46.322717Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 44 regular channels for workspace Liora (total: 2960)
+[2m2026-04-03T19:50:46.323176Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:46.379196Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 2960 entries (done: false)
+[2m2026-04-03T19:50:46.403008Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 2960 entries
+[2m2026-04-03T19:50:46.617264Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:46.620369Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 72 regular channels for workspace Liora (total: 3032)
+[2m2026-04-03T19:50:46.620710Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:46.620821Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 3032 entries (done: false)
+[2m2026-04-03T19:50:46.634414Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 3032 entries
+[2m2026-04-03T19:50:46.926631Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:46.929854Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 37 regular channels for workspace Liora (total: 3069)
+[2m2026-04-03T19:50:46.930292Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:46.956287Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 3069 entries (done: false)
+[2m2026-04-03T19:50:46.974007Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 3069 entries
+[2m2026-04-03T19:50:47.199151Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 24 regular channels for workspace Liora (total: 3093)
+[2m2026-04-03T19:50:47.200101Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:47.200218Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:47.262393Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 3093 entries (done: false)
+[2m2026-04-03T19:50:47.276245Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 3093 entries
+[2m2026-04-03T19:50:47.552071Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:47.555999Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 200 DMs for workspace Liora (total: 3293)
+[2m2026-04-03T19:50:47.556484Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:47.594956Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 3293 entries (done: false)
+[2m2026-04-03T19:50:47.622203Z[0m [34mDEBUG[0m [2mslack_zc::app::effects[0m[2m:[0m Updated cached channels for workspace Liora: 3293 entries
+[2m2026-04-03T19:50:47.704118Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("https", slack.com)
+[2m2026-04-03T19:50:47.705920Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Loaded 73 DMs for workspace Liora (total: 3366)
+[2m2026-04-03T19:50:47.705960Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Finished background channel loading for Liora
+[2m2026-04-03T19:50:47.736180Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 3366 entries (done: true)
+[2m2026-04-03T19:50:47.764320Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Saved 3366 cached channels for workspace Liora
+[2m2026-04-03T19:50:47.764361Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Workspace Liora channels updated: 3366 entries (done: true)
+[2m2026-04-03T19:50:47.781067Z[0m [32m INFO[0m [2mslack_zc::app::effects[0m[2m:[0m Saved 3366 cached channels for workspace Liora
+[2m2026-04-03T19:50:50.773513Z[0m [32m INFO[0m [2mslack_zc::app::actions[0m[2m:[0m Dispatching agent command résume for channel mlops_squad (C064RPRD1DX)
+[2m2026-04-03T19:50:50.774749Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m reuse idle connection for ("http", 127.0.0.1:42617)
+[2m2026-04-03T19:51:20.779030Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::pool[0m[2m:[0m pooling idle connection for ("http", 127.0.0.1:42617)
+[2m2026-04-03T19:51:20.852432Z[0m [33m WARN[0m [2mslack_zc::app[0m[2m:[0m Agent command failed: Agent command failed after 60s: Webhook failed: 408 Request Timeout
+
+Press R to retry

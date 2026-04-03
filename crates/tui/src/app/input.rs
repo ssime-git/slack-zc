@@ -551,11 +551,14 @@ impl App {
     fn handle_messages_keys(&mut self, key: KeyEvent) -> Result<()> {
         match key.code {
             KeyCode::Down | KeyCode::Char('j') => {
-                self.scroll_offset += 1;
-            }
-            KeyCode::Up | KeyCode::Char('k') => {
                 if self.scroll_offset > 0 {
                     self.scroll_offset -= 1;
+                }
+            }
+            KeyCode::Up | KeyCode::Char('k') => {
+                let max_scroll = self.max_scroll_offset();
+                if self.scroll_offset < max_scroll {
+                    self.scroll_offset += 1;
                 }
             }
             KeyCode::Char('i') => {
@@ -570,8 +573,9 @@ impl App {
                 if let Some(ref channel) = self.selected_channel {
                     if let Some(ch) = self.channels.get(*channel) {
                         if let Some(messages) = self.messages.get(&ch.id) {
-                            let msg_index =
-                                self.scroll_offset.min(messages.len().saturating_sub(1));
+                            let msg_index = self
+                                .current_message_index()
+                                .unwrap_or_else(|| messages.len().saturating_sub(1));
                             if let Some(msg) = messages.get(msg_index) {
                                 // Only enter thread mode if message has replies or is a thread parent
                                 let has_replies = msg.reply_count.is_some_and(|c| c > 0);
@@ -641,8 +645,9 @@ impl App {
                 if let Some(ref channel) = self.selected_channel {
                     if let Some(ch) = self.channels.get(*channel) {
                         if let Some(messages) = self.messages.get(&ch.id) {
-                            let msg_index =
-                                self.scroll_offset.min(messages.len().saturating_sub(1));
+                            let msg_index = self
+                                .current_message_index()
+                                .unwrap_or_else(|| messages.len().saturating_sub(1));
                             if let Some(msg) = messages.get(msg_index) {
                                 let thread_key = msg.thread_ts.clone().or(Some(msg.ts.clone()));
                                 if let Some(thread_key) = thread_key {
@@ -822,11 +827,14 @@ impl App {
                 self.drag_target = None;
             }
             MouseEventKind::ScrollDown => {
-                self.scroll_offset += 1;
-            }
-            MouseEventKind::ScrollUp => {
                 if self.scroll_offset > 0 {
                     self.scroll_offset -= 1;
+                }
+            }
+            MouseEventKind::ScrollUp => {
+                let max_scroll = self.max_scroll_offset();
+                if self.scroll_offset < max_scroll {
+                    self.scroll_offset += 1;
                 }
             }
             _ => {}

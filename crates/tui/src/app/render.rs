@@ -508,6 +508,7 @@ impl App {
         use ratatui::widgets::{Block, Borders, List, ListItem, ListState};
 
         let is_messages_focused = self.focus == Focus::Messages;
+        let content_width = area.width.saturating_sub(4) as usize;
 
         let items: Vec<ListItem> = if let Some(ref channel) = self.selected_channel {
             self.channels
@@ -540,20 +541,23 @@ impl App {
                             };
 
                             let edited_indicator = if m.is_edited { " (edited)" } else { "" };
+                            let prefix = format!(
+                                "{}{} {}{}: ",
+                                thread_indicator,
+                                m.timestamp.format("%H:%M"),
+                                m.username,
+                                edited_indicator
+                            );
+                            let continuation_prefix = " ".repeat(prefix.chars().count());
 
-                            let mut line_spans = vec![
-                                Span::styled(
-                                    format!(
-                                        "{}{} {}{}: ",
-                                        thread_indicator,
-                                        m.timestamp.format("%H:%M"),
-                                        m.username,
-                                        edited_indicator
-                                    ),
-                                    Style::default().fg(Color::Gray),
-                                ),
-                                Span::raw(m.text.clone()),
-                            ];
+                            let mut lines = Self::wrap_prefixed_lines(
+                                &prefix,
+                                &continuation_prefix,
+                                &m.text,
+                                content_width,
+                                Style::default().fg(Color::Gray),
+                                Style::default(),
+                            );
 
                             if !m.reactions.is_empty() {
                                 let reactions_str: Vec<String> = m
@@ -561,22 +565,28 @@ impl App {
                                     .iter()
                                     .map(|r| format!("{}:{}", r.name, r.count))
                                     .collect();
-                                line_spans.push(Span::styled(
-                                    format!(" [{}]", reactions_str.join(" ")),
+                                lines.extend(Self::wrap_prefixed_lines(
+                                    "",
+                                    "",
+                                    &format!("[{}]", reactions_str.join(" ")),
+                                    content_width,
+                                    Style::default().fg(Color::Cyan),
                                     Style::default().fg(Color::Cyan),
                                 ));
                             }
 
                             if let Some(reply_count) = m.reply_count {
                                 if reply_count > 0 {
-                                    line_spans.push(Span::styled(
-                                        format!(" (+{} replies)", reply_count),
+                                    lines.extend(Self::wrap_prefixed_lines(
+                                        "",
+                                        "",
+                                        &format!("(+{} replies)", reply_count),
+                                        content_width,
+                                        Style::default().fg(Color::Magenta),
                                         Style::default().fg(Color::Magenta),
                                     ));
                                 }
                             }
-
-                            let mut lines = vec![Line::from(line_spans)];
 
                             if self.message_filter.show_threads {
                                 if let Some(thread_key) = m.thread_ts.clone().or(Some(m.ts.clone()))
@@ -587,29 +597,34 @@ impl App {
                                         {
                                             if !thread.is_collapsed {
                                                 for reply in &thread.replies {
-                                                    lines.push(Line::from(vec![
-                                                        Span::styled(
-                                                            format!(
-                                                                "    ↳ {} {}: ",
-                                                                reply.timestamp.format("%H:%M"),
-                                                                reply.username
-                                                            ),
-                                                            Style::default().fg(Color::DarkGray),
-                                                        ),
-                                                        Span::styled(
-                                                            reply.text.clone(),
-                                                            Style::default().fg(Color::DarkGray),
-                                                        ),
-                                                    ]));
+                                                    let reply_prefix = format!(
+                                                        "    ↳ {} {}: ",
+                                                        reply.timestamp.format("%H:%M"),
+                                                        reply.username
+                                                    );
+                                                    let reply_continuation =
+                                                        " ".repeat(reply_prefix.chars().count());
+                                                    lines.extend(Self::wrap_prefixed_lines(
+                                                        &reply_prefix,
+                                                        &reply_continuation,
+                                                        &reply.text,
+                                                        content_width,
+                                                        Style::default().fg(Color::DarkGray),
+                                                        Style::default().fg(Color::DarkGray),
+                                                    ));
                                                 }
                                             } else {
-                                                lines.push(Line::from(vec![Span::styled(
-                                                    format!(
+                                                lines.extend(Self::wrap_prefixed_lines(
+                                                    "",
+                                                    "",
+                                                    &format!(
                                                         "    [{} replies - press T to expand]",
                                                         thread.replies.len()
                                                     ),
+                                                    content_width,
                                                     Style::default().fg(Color::DarkGray),
-                                                )]));
+                                                    Style::default().fg(Color::DarkGray),
+                                                ));
                                             }
                                         }
                                     }
@@ -669,7 +684,7 @@ impl App {
 
     fn render_agent_panel(&self, frame: &mut Frame, area: Rect) {
         use ratatui::layout::Alignment;
-        use ratatui::widgets::{Block, Borders, Paragraph};
+        use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 
         if let Some(ref dialog) = self.confirmation_dialog {
             self.render_confirmation_dialog(frame, area, dialog);
@@ -726,21 +741,26 @@ impl App {
             text.push_str("── Recent ──\n");
             for resp in self.agent_responses.iter().take(5) {
                 let time = resp.timestamp.format("%H:%M").to_string();
+                let content_width = area.width.saturating_sub(4) as usize;
+                let prefix = format!("{} {}: ", time, resp.command);
+                let continuation = " ".repeat(prefix.chars().count());
+                let wrapped = Self::wrap_plain_with_prefix(
+                    &prefix,
+                    &continuation,
+                    &resp.response,
+                    content_width,
+                );
                 text.push_str(&format!(
-                    "{} {}: {}\n",
-                    time,
-                    resp.command,
-                    if resp.response.len() > 30 {
-                        &resp.response[..30]
-                    } else {
-                        &resp.response
-                    }
+                    "{}\n",
+                    wrapped
                 ));
             }
         }
 
         frame.render_widget(
-            Paragraph::new(text).block(Block::default().borders(Borders::ALL).title(" Agent ")),
+            Paragraph::new(text)
+                .wrap(Wrap { trim: false })
+                .block(Block::default().borders(Borders::ALL).title(" Agent ")),
             area,
         );
     }
@@ -1028,6 +1048,172 @@ impl App {
         }
 
         out.join("\n")
+    }
+
+    fn wrap_plain_lines(input: &str, width: usize) -> Vec<String> {
+        if width == 0 {
+            return vec![String::new()];
+        }
+
+        let mut out = Vec::new();
+
+        for raw_line in input.lines() {
+            if raw_line.is_empty() {
+                out.push(String::new());
+                continue;
+            }
+
+            let mut current = String::new();
+            for word in raw_line.split_whitespace() {
+                if word.chars().count() > width {
+                    if !current.is_empty() {
+                        out.push(std::mem::take(&mut current));
+                    }
+
+                    let mut chunk = String::new();
+                    for ch in word.chars() {
+                        chunk.push(ch);
+                        if chunk.chars().count() == width {
+                            out.push(std::mem::take(&mut chunk));
+                        }
+                    }
+                    if !chunk.is_empty() {
+                        current = chunk;
+                    }
+                    continue;
+                }
+
+                let candidate = if current.is_empty() {
+                    word.to_string()
+                } else {
+                    format!("{current} {word}")
+                };
+
+                if candidate.chars().count() <= width {
+                    current = candidate;
+                } else {
+                    out.push(std::mem::take(&mut current));
+                    current = word.to_string();
+                }
+            }
+
+            if !current.is_empty() {
+                out.push(current);
+            }
+        }
+
+        if out.is_empty() {
+            out.push(String::new());
+        }
+
+        out
+    }
+
+    fn wrap_plain_with_prefix(
+        first_prefix: &str,
+        continuation_prefix: &str,
+        input: &str,
+        width: usize,
+    ) -> String {
+        Self::wrap_prefixed_strings(first_prefix, continuation_prefix, input, width).join("\n")
+    }
+
+    fn wrap_prefixed_strings(
+        first_prefix: &str,
+        continuation_prefix: &str,
+        input: &str,
+        width: usize,
+    ) -> Vec<String> {
+        if width == 0 {
+            return vec![String::new()];
+        }
+
+        let first_width = width.saturating_sub(first_prefix.chars().count()).max(1);
+        let continuation_width = width
+            .saturating_sub(continuation_prefix.chars().count())
+            .max(1);
+
+        let mut wrapped = Vec::new();
+
+        for (line_idx, raw_line) in input.lines().enumerate() {
+            if raw_line.is_empty() {
+                let prefix = if wrapped.is_empty() {
+                    first_prefix
+                } else {
+                    continuation_prefix
+                };
+                wrapped.push(prefix.to_string());
+                continue;
+            }
+
+            let chunks = if line_idx == 0 {
+                Self::wrap_plain_lines(raw_line, first_width)
+            } else {
+                Self::wrap_plain_lines(raw_line, continuation_width)
+            };
+
+            for (chunk_idx, chunk) in chunks.into_iter().enumerate() {
+                let prefix = if wrapped.is_empty() && line_idx == 0 && chunk_idx == 0 {
+                    first_prefix
+                } else {
+                    continuation_prefix
+                };
+                wrapped.push(format!("{prefix}{chunk}"));
+            }
+
+        }
+
+        if wrapped.is_empty() {
+            wrapped.push(first_prefix.to_string());
+        }
+
+        wrapped
+    }
+
+    fn wrap_prefixed_lines(
+        first_prefix: &str,
+        continuation_prefix: &str,
+        input: &str,
+        width: usize,
+        prefix_style: ratatui::style::Style,
+        text_style: ratatui::style::Style,
+    ) -> Vec<ratatui::text::Line<'static>> {
+        let first_width = width.saturating_sub(first_prefix.chars().count()).max(1);
+        let continuation_width = width
+            .saturating_sub(continuation_prefix.chars().count())
+            .max(1);
+        let mut out = Vec::new();
+        let mut first_rendered = false;
+
+        for raw_line in input.lines() {
+            let chunks = if first_rendered {
+                Self::wrap_plain_lines(raw_line, continuation_width)
+            } else {
+                Self::wrap_plain_lines(raw_line, first_width)
+            };
+
+            for chunk in chunks {
+                let prefix = if first_rendered {
+                    continuation_prefix
+                } else {
+                    first_prefix
+                };
+                out.push(ratatui::text::Line::from(vec![
+                    ratatui::text::Span::styled(prefix.to_string(), prefix_style),
+                    ratatui::text::Span::styled(chunk, text_style),
+                ]));
+                first_rendered = true;
+            }
+        }
+
+        if out.is_empty() {
+            out.push(ratatui::text::Line::from(vec![
+                ratatui::text::Span::styled(first_prefix.to_string(), prefix_style),
+                ratatui::text::Span::styled(String::new(), text_style),
+            ]));
+        }
+
+        out
     }
 
     fn render_jump_to_time(&self, frame: &mut Frame, area: Rect) {
